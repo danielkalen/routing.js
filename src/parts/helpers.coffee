@@ -1,5 +1,22 @@
 module.exports = helpers = {}
 
+helpers.noop = ()-> Promise.resolve()
+
+helpers.removeItem = (target, item)->
+	itemIndex = target.indexOf(item)
+	target.splice(itemIndex, 1)  if itemIndex isnt -1
+	return target
+
+### istanbul ignore next ###
+helpers.logError = (err)->
+	err = new Error(err) unless err instanceof Error
+	if console?.error?
+		console.error(err)
+	else if console?.log?
+		console.log(err)
+	return
+
+
 helpers.cleanPath = (path)->
 	path = path.slice(1) if path[0] is '#'
 	if path.length > 1
@@ -20,6 +37,7 @@ helpers.parsePath = (path)->
 	addSegment = ()->
 		segments.push(currentSegment)
 		segments.dynamic[segments.length-1] = currentSegment if dynamic
+		segments.hasDynamic = true if dynamic
 		currentSegment = ''
 		dynamic = false
 	

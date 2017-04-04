@@ -1,6 +1,8 @@
 module.exports = Route = (@path, @segments)->
-	@action = @enterAction = @leaveAction = noop
-	@context = params:{}
+	@originalPath = @path
+	@action = @enterAction = @leaveAction = helpers.noop
+	@context = {@path, @segments, params:{}}
+	@_dynamicFilters = {}
 
 	return @
 
@@ -18,6 +20,10 @@ Route::to = (fn)->
 	@action = fn
 	return @
 
+Route::filters = (filters)->
+	@_dynamicFilters = filters
+	return @
+
 
 Route::_run = (path, prevRoute, prevPath)->
 	@_resolveParams(path)
@@ -27,7 +33,7 @@ Route::_run = (path, prevRoute, prevPath)->
 Route::_leave = (newRoute, newPath)->
 	@leaveAction.call(@context, newPath, newRoute)
 
-Route::_resolveParams = (path)->
+Route::_resolveParams = (path)-> if @segments.hasDynamic
 	segments = path.split('/')
 	
 	for dynamicIndex,dynamicSegment of @segments.dynamic
