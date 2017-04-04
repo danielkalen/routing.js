@@ -12,7 +12,7 @@
     "test:safari": "karma start --single-run --browsers Safari .config/karma.conf.coffee",
     "test:sauce": "coffee .config/sauce-launch.coffee && npm run test-serve",
     "test-serve": "http-server -p 9201 --cors ./",
-    "sauce-connect": "sc -u routing -k 0c7a6cc2-ed14-4f08-b48d-e46c74905b6a",
+    "sauce-connect": "sc -u routingjs -k 9321bba9-2293-4e66-8fb5-06e255fbaa51",
     "build": "npm run compile && npm run super-minify && npm run manual-minify",
     "compile": "npm run compile:js && npm run compile:test",
     "compile:js": "foreach -g 'src/*.coffee' -x 'simplyimport -i {{path}} | coffee -cbs --no-header > dist/{{name}}.debug.js && uglifyjs dist/{{name}}.debug.js -m -c keep_fargs,unused=false -o dist/{{name}}.js'",
