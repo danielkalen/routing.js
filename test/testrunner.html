@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>QuickField Test Runner</title>
+  <link rel="stylesheet" type="text/css" href="../node_modules/mocha/mocha.css">
+</head>
+
+<body>
+  <div id="mocha"></div>
+  <script src="../dist/routing.debug.js"></script>
+  <script src="../node_modules/bluebird/js/browser/bluebird.js"></script>
+  <script src="../node_modules/mocha/mocha.js"></script>
+  <script src="../node_modules/chai/chai.js"></script>
+  <script src="../node_modules/jquery/dist/jquery.min.js"></script>
+  <script src="test.js"></script>
+  <script>
+    var runner = mocha.run(),
+        failedTests = [];
+
+    runner.on('end', function(){
+      window.mochaResults = runner.stats;
+      window.mochaResults.reports = failedTests;
+    });
+
+    runner.on('fail', function(test, err){
+      console.error(err);
+      failedTests.push({
+        'name': test.title,
+        'result': false,
+        'message': err.message,
+        'stack': err.stack,
+        'titles': (function(){
+          var titles = [];
+          while (test.parent.title) {
+            titles.push(test.parent.title);
+            test = test.parent;
+          }
+          return titles.reverse();
+        })()
+      });
+    });
+  </script>
+</body>
+</html>
