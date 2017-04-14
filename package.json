@@ -2,7 +2,7 @@
   "name": "routing.js",
   "version": "1.0.1",
   "description": "Simple, lightweight, promise-based client-side routing supporting IE8+",
-  "main": "index.js",
+  "main": "dist/routing.js",
   "scripts": {
     "postversion": "echo \\'$(json -f package.json version)\\' > .config/.version.coffee && npm run build",
     "test": "open test/testrunner.html",
