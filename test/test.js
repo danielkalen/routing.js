@@ -499,8 +499,12 @@ chai.use((function(exports){
 expect = chai.expect;
 
 setHash = function(targetHash, delay) {
+  if (delay == null) {
+    delay = 1;
+  }
   return new Promise(function(resolve) {
     var handler;
+    targetHash = getHash(targetHash);
     handler = function() {
       window.removeEventListener('hashchange', handler);
       if (delay) {
@@ -514,8 +518,11 @@ setHash = function(targetHash, delay) {
   });
 };
 
-getHash = function() {
-  return window.location.hash.replace(/^#\/?/, '');
+getHash = function(hash) {
+  if (hash == null) {
+    hash = window.location.hash;
+  }
+  return hash.replace(/^#?\/?/, '');
 };
 
 suite("Routing.JS", function() {

@@ -4,15 +4,16 @@ mocha.slow(700)
 mocha.bail() unless window.location.hostname
 chai.use require('chai-spies')
 expect = chai.expect
-setHash = (targetHash, delay)-> new Promise (resolve)->
+setHash = (targetHash, delay=1)-> new Promise (resolve)->
+	targetHash = getHash(targetHash)
 	handler = ()->
-		window.removeEventListener('hashchange', handler);
+		window.removeEventListener('hashchange', handler)
 		if delay then Promise.delay(delay).then(resolve) else resolve()
 	window.addEventListener('hashchange', handler)
 	window.location.hash = targetHash
 
-getHash = ()->
-	window.location.hash.replace /^#\/?/, ''
+getHash = (hash=window.location.hash)->
+	hash.replace /^#?\/?/, ''
 
 
 suite "Routing.JS", ()->
