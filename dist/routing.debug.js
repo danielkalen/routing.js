@@ -157,6 +157,7 @@
             if (isNaN(this.timeout)) {
               this.timeout = 2500;
             }
+            this.listening = false;
             this.routes = [];
             this._specialRoutes = {};
             this._routesMap = {};
@@ -227,6 +228,7 @@
             return route;
           };
           Router.prototype.listen = function() {
+            this.listening = true;
             Routing._onChange(this._listenCallback = (function(_this) {
               return function(firstTime) {
                 return _this.go(window.location.hash, false, firstTime);

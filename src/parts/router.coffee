@@ -4,6 +4,7 @@ FALLBACK_ROUTE = '*FALLBACK*'
 
 module.exports = Router = (@timeout)->
 	@timeout = 2500 if isNaN(@timeout)
+	@listening = false
 	@routes = []
 	@_specialRoutes = {}
 	@_routesMap = {}
@@ -68,6 +69,7 @@ Router::_addRoute = (route)->
 
 
 Router::listen = ()->
+	@listening = true
 	Routing._onChange @_listenCallback = (firstTime)=>
 		@go(window.location.hash, false, firstTime)
 
