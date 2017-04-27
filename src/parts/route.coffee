@@ -1,3 +1,5 @@
+helpers = import './helpers'
+
 module.exports = Route = (@path, @segments)->
 	@originalPath = @path
 	@action = @enterAction = @leaveAction = helpers.noop
