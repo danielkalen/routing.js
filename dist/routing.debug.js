@@ -382,7 +382,7 @@
           routers.push(routerInstance = new Router(timeout));
           return routerInstance;
         };
-        this.version = '1.0.2';
+        this.version = '1.0.3';
         return this;
       };
 
