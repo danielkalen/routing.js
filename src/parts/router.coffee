@@ -23,9 +23,12 @@ module.exports = Router = (@timeout)->
 Router::_matchPath = (path, firstTime)->
 	return @_specialRoutes.fallback if path is FALLBACK_ROUTE
 	path = helpers.cleanPath(path)
-	segments = helpers.parsePath(path)
+	segments = helpers.parsePath(path, @_specialRoutes.basePath)
 	segmentsStrigified = segments.join('/')
 	matchingRoute = @_routesMap[segmentsStrigified] or @_cache[segmentsStrigified]
+
+	return if @_specialRoutes.basePath and
+			  path.indexOf(@_specialRoutes.basePath) isnt 0
 
 	if not matchingRoute
 		for route in @routes
@@ -137,6 +140,10 @@ Router::beforeAll = (fn)->
 
 Router::afterAll = (fn)->
 	@_globalAfter = fn
+	return @
+
+Router::base = (path)->
+	@_specialRoutes.basePath = helpers.cleanPath(path)
 	return @
 
 Router::root = (path)->

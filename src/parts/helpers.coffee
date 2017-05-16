@@ -26,11 +26,12 @@ helpers.cleanPath = (path)->
 	return path
 
 
-helpers.parsePath = (path)->
+helpers.parsePath = (path, basePath)->
 	dynamic = false
 	currentSegment = ''
 	segments = []
 	segments.dynamic = {}
+	path = path.slice(basePath.length+1) if basePath and path.indexOf(basePath) is 0
 	length = path.length
 	i = -1
 

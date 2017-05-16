@@ -45,9 +45,12 @@
             return this._specialRoutes.fallback;
           }
           path = helpers.cleanPath(path);
-          segments = helpers.parsePath(path);
+          segments = helpers.parsePath(path, this._specialRoutes.basePath);
           segmentsStrigified = segments.join('/');
           matchingRoute = this._routesMap[segmentsStrigified] || this._cache[segmentsStrigified];
+          if (this._specialRoutes.basePath && path.indexOf(this._specialRoutes.basePath) !== 0) {
+            return;
+          }
           if (!matchingRoute) {
             ref = this.routes;
             for (j = 0, len = ref.length; j < len; j++) {
@@ -173,6 +176,10 @@
           this._globalAfter = fn;
           return this;
         };
+        Router.prototype.base = function(path) {
+          this._specialRoutes.basePath = helpers.cleanPath(path);
+          return this;
+        };
         Router.prototype.root = function(path) {
           this._specialRoutes.rootPath = helpers.cleanPath(path);
           return this;
@@ -242,12 +249,15 @@
           }
           return path;
         };
-        helpers.parsePath = function(path) {
+        helpers.parsePath = function(path, basePath) {
           var addSegment, char, currentSegment, dynamic, i, length, segments;
           dynamic = false;
           currentSegment = '';
           segments = [];
           segments.dynamic = {};
+          if (basePath && path.indexOf(basePath) === 0) {
+            path = path.slice(basePath.length + 1);
+          }
           length = path.length;
           i = -1;
           addSegment = function() {
