@@ -141,7 +141,7 @@
                         return (ref = _this.prev.route) != null ? ref._leave(_this.current.route, _this.current.path) : void 0;
                       }).then(function() {
                         return matchingRoute._run(path, _this.prev.route, _this.prev.path);
-                      }).then(_this._globalAfter).then(resolve);
+                      }).then(_this._globalAfter).then(resolve)["catch"](reject);
                     });
                   });
                   return _this._pendingRoute["catch"](function(err) {

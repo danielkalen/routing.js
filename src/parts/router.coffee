@@ -111,6 +111,7 @@ Router::go = (path, forceRefresh, firstTime, navDirection)-> if typeof path isnt
 				.then ()=> matchingRoute._run(path, @prev.route, @prev.path)
 				.then @_globalAfter
 				.then resolve
+				.catch reject
 
 		@_pendingRoute.catch (err)=>
 			helpers.logError(err)

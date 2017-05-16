@@ -309,6 +309,63 @@ suite "Routing.JS", ()->
 							expect(getHash()).to.equal 'abc'
 
 
+	test "A failed route transition will cause the router to go to the fallback route if exists", ()->
+		invokeCount = 0
+		consoleError = console.error
+		console.error = chai.spy()
+
+		Promise.delay()
+			.then ()-> 
+				Router = Routing.Router()
+				Router.map('abc').to ()-> Promise.delay().then ()-> throw new Error 'rejected'
+				Router.fallback ()-> invokeCount++
+				Router.listen()
+			
+			.delay()
+			
+			.then ()->
+				expect(invokeCount).to.equal 1
+				expect(getHash()).to.equal ''
+				setHash('abc')
+		
+			.then ()->
+				expect(getHash()).to.equal 'abc'
+				expect(invokeCount).to.equal 2
+			
+			.finally ()-> console.error = consoleError
+
+
+	test "A failed route transition will cause the router to go to the previous route if no fallback exists", ()->
+		invokeCount = 0
+		consoleError = console.error
+		console.error = chai.spy()
+
+		Promise.delay()
+			.then ()-> 
+				Router = Routing.Router()
+				Router.map('abc').to ()-> invokeCount++
+				Router.map('def').to ()-> Promise.delay().then ()-> throw new Error 'rejected'
+				Router.listen()
+			
+			.delay()
+			
+			.then ()->
+				expect(invokeCount).to.equal 0
+				expect(getHash()).to.equal ''
+				setHash('abc')
+		
+			.then ()->
+				expect(getHash()).to.equal 'abc'
+				expect(invokeCount).to.equal 1
+				setHash('def')
+		
+			.then ()->
+				expect(getHash()).to.equal 'abc'
+				expect(invokeCount).to.equal 2
+			
+			.finally ()-> console.error = consoleError
+
+
 	test "Router.beforeAll/afterAll() can take a function which will be executed before/after all route changes", ()->
 		invokeCount = before:0, after:0, beforeB:0
 		delays = before:null, after:null, afterC:null
