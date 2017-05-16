@@ -1367,6 +1367,62 @@
           });
         });
       });
+      test("A base path can be specified via Routing.base() and will only match routes that begin with the base", function() {
+        var base;
+        base = '/theBase/goes/here';
+        window.invokeCount = {
+          abc: 0,
+          def: 0,
+          fallback: 0
+        };
+        return Promise.delay().then(function() {
+          var Router;
+          Router = Routing.Router();
+          Router.base(base = 'theBase/goes/here');
+          Router.map('abc').to(function() {
+            return invokeCount.abc++;
+          });
+          Router.map('def').to(function() {
+            return invokeCount.def++;
+          });
+          Router.fallback(function() {
+            return invokeCount.fallback++;
+          });
+          return Router.listen();
+        }).delay().tap(function() {
+          expect(invokeCount.abc).to.equal(0);
+          expect(invokeCount.def).to.equal(0);
+          expect(invokeCount.fallback).to.equal(0);
+          return setHash('abc');
+        }).tap(function(Router) {
+          expect(invokeCount.abc).to.equal(0);
+          expect(invokeCount.def).to.equal(0);
+          expect(invokeCount.fallback).to.equal(0);
+          expect(Router.current.path).to.equal(null);
+          expect(getHash()).to.equal('abc');
+          return setHash(base + "/abc");
+        }).tap(function(Router) {
+          expect(invokeCount.abc).to.equal(1);
+          expect(invokeCount.def).to.equal(0);
+          expect(invokeCount.fallback).to.equal(0);
+          expect(Router.current.path).to.equal(base + "/abc");
+          expect(getHash()).to.equal(base + "/abc");
+          return setHash('def');
+        }).tap(function(Router) {
+          expect(invokeCount.abc).to.equal(1);
+          expect(invokeCount.def).to.equal(0);
+          expect(invokeCount.fallback).to.equal(0);
+          expect(Router.current.path).to.equal(base + "/abc");
+          expect(getHash()).to.equal("def");
+          return setHash(base + "/def");
+        }).tap(function(Router) {
+          expect(invokeCount.abc).to.equal(1);
+          expect(invokeCount.def).to.equal(1);
+          expect(invokeCount.fallback).to.equal(0);
+          expect(Router.current.path).to.equal(base + "/def");
+          return expect(getHash()).to.equal(base + "/def");
+        });
+      });
       test("Router.kill() will destroy the router instance and will remove all handlers", function() {
         var RouterA, RouterB, defineRoutes, invokeChanges, invokeCountA, invokeCountB;
         RouterA = Routing.Router();

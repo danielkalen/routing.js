@@ -701,6 +701,59 @@ suite "Routing.JS", ()->
 							expect(getHash()).to.equal 'ghi'
 
 
+	test "A base path can be specified via Routing.base() and will only match routes that begin with the base", ()->
+		base = '/theBase/goes/here'
+		window.invokeCount = abc:0, def:0, fallback:0
+		
+		Promise.delay()
+			.then ()->
+				Router = Routing.Router()
+				Router.base base='theBase/goes/here'
+				Router.map('abc').to ()-> invokeCount.abc++
+				Router.map('def').to ()-> invokeCount.def++
+				Router.fallback ()-> invokeCount.fallback++
+				Router.listen()
+			
+			.delay()
+
+			.tap ()->
+				expect(invokeCount.abc).to.equal 0
+				expect(invokeCount.def).to.equal 0
+				expect(invokeCount.fallback).to.equal 0
+				setHash('abc')
+
+			.tap (Router)->
+				expect(invokeCount.abc).to.equal 0
+				expect(invokeCount.def).to.equal 0
+				expect(invokeCount.fallback).to.equal 0
+				expect(Router.current.path).to.equal null
+				expect(getHash()).to.equal 'abc'
+				setHash("#{base}/abc")
+
+			.tap (Router)->
+				expect(invokeCount.abc).to.equal 1
+				expect(invokeCount.def).to.equal 0
+				expect(invokeCount.fallback).to.equal 0
+				expect(Router.current.path).to.equal "#{base}/abc"
+				expect(getHash()).to.equal "#{base}/abc"
+				setHash('def')
+
+			.tap (Router)->
+				expect(invokeCount.abc).to.equal 1
+				expect(invokeCount.def).to.equal 0
+				expect(invokeCount.fallback).to.equal 0
+				expect(Router.current.path).to.equal "#{base}/abc"
+				expect(getHash()).to.equal "def"
+				setHash("#{base}/def")
+
+			.tap (Router)->
+				expect(invokeCount.abc).to.equal 1
+				expect(invokeCount.def).to.equal 1
+				expect(invokeCount.fallback).to.equal 0
+				expect(Router.current.path).to.equal "#{base}/def"
+				expect(getHash()).to.equal "#{base}/def"
+
+
 	test "Router.kill() will destroy the router instance and will remove all handlers", ()->
 		RouterA = Routing.Router()
 		RouterB = Routing.Router()
