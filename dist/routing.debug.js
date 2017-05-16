@@ -41,6 +41,9 @@
         };
         Router.prototype._matchPath = function(path, firstTime) {
           var dynamicSegment, index, j, k, len, len1, matchingRoute, matchingSoFar, ref, route, segment, segments, segmentsStrigified;
+          if (path === FALLBACK_ROUTE) {
+            return this._specialRoutes.fallback;
+          }
           path = helpers.cleanPath(path);
           segments = helpers.parsePath(path);
           segmentsStrigified = segments.join('/');
@@ -144,7 +147,7 @@
                   return _this._pendingRoute["catch"](function(err) {
                     helpers.logError(err);
                     _this._pendingRoute = Promise.resolve();
-                    return _this.go(_this.prev.path);
+                    return _this.go(_this._specialRoutes.fallback ? FALLBACK_ROUTE : _this.prev.path);
                   });
                 };
               })(this)();

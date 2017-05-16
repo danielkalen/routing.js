@@ -21,6 +21,7 @@ module.exports = Router = (@timeout)->
 
 
 Router::_matchPath = (path, firstTime)->
+	return @_specialRoutes.fallback if path is FALLBACK_ROUTE
 	path = helpers.cleanPath(path)
 	segments = helpers.parsePath(path)
 	segmentsStrigified = segments.join('/')
@@ -114,7 +115,7 @@ Router::go = (path, forceRefresh, firstTime, navDirection)-> if typeof path isnt
 		@_pendingRoute.catch (err)=>
 			helpers.logError(err)
 			@_pendingRoute = Promise.resolve()
-			@go(@prev.path)
+			@go(if @_specialRoutes.fallback then FALLBACK_ROUTE else @prev.path)
 
 
 Router::map = (path)->
