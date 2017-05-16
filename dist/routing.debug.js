@@ -395,7 +395,7 @@
           routers.push(routerInstance = new Router(timeout));
           return routerInstance;
         };
-        this.version = '1.0.3';
+        this.version = '1.0.4';
         return this;
       };
 
