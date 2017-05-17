@@ -3,7 +3,7 @@ helpers = import './helpers'
 FALLBACK_ROUTE = '*FALLBACK*'
 
 module.exports = class Router
-	constructor: (@timeout)->
+	constructor: (@timeout, @ID)->
 		@timeout = 2500 if isNaN(@timeout)
 		@listening = false
 		@routes = []
@@ -112,8 +112,8 @@ module.exports = class Router
 			@_pendingRoute = @_pendingRoute.then ()=> new Promise (resolve, reject)=>
 				@_pendingPath = path
 				
-				setTimeout ()->
-					reject(new Error "Timeout Error - #{path}")
+				setTimeout ()=>
+					reject(new Error "TimeoutError: '#{path}' failed to load within #{@timeout}ms (Router ##{@ID})")
 				, @timeout
 
 				Promise.resolve()

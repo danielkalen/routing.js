@@ -16,8 +16,9 @@
         helpers = _s$m(2);
         FALLBACK_ROUTE = '*FALLBACK*';
         module.exports = Router = (function() {
-          function Router(timeout1) {
+          function Router(timeout1, ID) {
             this.timeout = timeout1;
+            this.ID = ID;
             if (isNaN(this.timeout)) {
               this.timeout = 2500;
             }
@@ -157,7 +158,7 @@
                       return new Promise(function(resolve, reject) {
                         _this._pendingPath = path;
                         setTimeout(function() {
-                          return reject(new Error("Timeout Error - " + path));
+                          return reject(new Error("TimeoutError: '" + path + "' failed to load within " + _this.timeout + "ms (Router #" + _this.ID + ")"));
                         }, _this.timeout);
                         return Promise.resolve().then(_this._globalBefore).then(function() {
                           var ref;
@@ -397,10 +398,11 @@
       Router = _s$m(1);
       helpers = _s$m(2);
       Routing = new function() {
-        var changeCallbacks, dispatchChange, listening, routers;
+        var changeCallbacks, currentID, dispatchChange, listening, routers;
         changeCallbacks = [];
         routers = [];
         listening = false;
+        currentID = 0;
         dispatchChange = function(firstTime) {
           var callback, j, len;
           for (j = 0, len = changeCallbacks.length; j < len; j++) {
@@ -436,7 +438,7 @@
         };
         this.Router = function(timeout) {
           var routerInstance;
-          routers.push(routerInstance = new Router(timeout));
+          routers.push(routerInstance = new Router(timeout, ++currentID));
           return routerInstance;
         };
         this.version = '1.0.4';

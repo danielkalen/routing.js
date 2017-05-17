@@ -6,6 +6,7 @@ do ()->
 		changeCallbacks = []
 		routers = []
 		listening = false
+		currentID = 0
 
 		dispatchChange = (firstTime)->
 			callback(firstTime is true) for callback in changeCallbacks
@@ -36,7 +37,7 @@ do ()->
 		
 
 		@Router = (timeout)->
-			routers.push routerInstance = new Router(timeout)
+			routers.push routerInstance = new Router(timeout, ++currentID)
 			return routerInstance
 
 		@version = import '../.config/.version'
