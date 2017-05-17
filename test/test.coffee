@@ -754,6 +754,53 @@ suite "Routing.JS", ()->
 				expect(getHash()).to.equal "#{base}/def"
 
 
+	test "Routers with base paths should have their .go() method auto-prefix paths with the base path if they do not have it", ()->
+		base = '/theBase/goes/here'
+		window.invokeCount = abc:0, def:0
+		
+		Promise.delay()
+			.then ()->
+				Router = Routing.Router()
+				Router.base base='theBase/goes/here'
+				Router.map('abc').to ()-> invokeCount.abc++
+				Router.map('def').to ()-> invokeCount.def++
+				Router.listen()
+			
+			.delay()
+
+			.tap (Router)->
+				expect(invokeCount.abc).to.equal 0
+				expect(invokeCount.def).to.equal 0
+				Router.go('abc')
+
+			.tap (Router)->
+				expect(invokeCount.abc).to.equal 1
+				expect(invokeCount.def).to.equal 0
+				expect(Router.current.path).to.equal "#{base}/abc"
+				expect(getHash()).to.equal "#{base}/abc"
+				Router.go('/def')
+
+			.tap (Router)->
+				expect(invokeCount.abc).to.equal 1
+				expect(invokeCount.def).to.equal 1
+				expect(Router.current.path).to.equal "#{base}/def"
+				expect(getHash()).to.equal "#{base}/def"
+				Router.go("#{base}/abc")
+
+			.tap (Router)->
+				expect(invokeCount.abc).to.equal 2
+				expect(invokeCount.def).to.equal 1
+				expect(Router.current.path).to.equal "#{base}/abc"
+				expect(getHash()).to.equal "#{base}/abc"
+				Router.go("#{base}/def")
+
+			.tap (Router)->
+				expect(invokeCount.abc).to.equal 2
+				expect(invokeCount.def).to.equal 2
+				expect(Router.current.path).to.equal "#{base}/def"
+				expect(getHash()).to.equal "#{base}/def"
+
+
 	test "Router.kill() will destroy the router instance and will remove all handlers", ()->
 		RouterA = Routing.Router()
 		RouterB = Routing.Router()
