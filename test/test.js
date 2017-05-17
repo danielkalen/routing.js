@@ -541,7 +541,9 @@
         var routerA, routerB;
         routerA = Routing.Router();
         routerB = Routing.Router();
-        return expect(routerA).not.to.equal(routerB);
+        expect(routerA).not.to.equal(routerB);
+        expect(routerA.ID).to.equal(1);
+        return expect(routerB.ID).to.equal(2);
       });
       test("Router.map() should accept a path and return a cachable Route instance", function() {
         var Router, routeA, routeB;
