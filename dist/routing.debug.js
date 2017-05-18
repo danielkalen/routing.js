@@ -504,7 +504,7 @@
           routers.push(routerInstance = new Router(timeout, ++currentID));
           return routerInstance;
         };
-        this.version = '1.0.5-b';
+        this.version = '1.0.5-c';
         return this;
       };
 
