@@ -490,7 +490,7 @@
           routers.push(routerInstance = new Router(timeout, ++currentID));
           return routerInstance;
         };
-        this.version = '1.0.5';
+        this.version = '1.0.5-a';
         return this;
       };
 
