@@ -156,8 +156,9 @@ module.exports = class Router
 
 		if not matchingRoute
 			matchingRoute = @_routesMap[segmentsStrigified] = new Route(path, segments, @)
+			@_addRoute(matchingRoute)
 
-		return @_addRoute(matchingRoute)
+		return matchingRoute
 
 
 	beforeAll: (fn)->
