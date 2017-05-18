@@ -77,6 +77,20 @@ module.exports = class Router
 
 		return route
 
+	_removeRoute: (route)-> if route
+		cacheKeys = Object.keys(@_cache)
+		mapKeys = Object.keys(@_routesMap)
+		routeIndex = @routes.indexOf(route)
+		
+		if routeIndex isnt -1
+			@routes.splice(routeIndex, 1)
+
+		matchingCacheKey = cacheKeys.filter((key)=> @_cache[key] is route)[0]
+		matchingMapKey = cacheKeys.filter((key)=> @_routesMap[key] is route)[0]
+		delete @_cache[matchingCacheKey]
+		delete @_routesMap[matchingMapKey]
+
+
 
 
 	listen: ()->

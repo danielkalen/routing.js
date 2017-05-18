@@ -25,6 +25,9 @@ module.exports = class Route
 		@_dynamicFilters = filters
 		return @
 
+	remove: ()->
+		@router._removeRoute(@)
+
 	_invokeAction: (action, relatedPath, relatedRoute)->
 		result = action.call(@context, relatedPath, relatedRoute)
 		if result is @router._pendingRoute

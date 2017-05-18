@@ -112,6 +112,30 @@
             return route;
           };
 
+          Router.prototype._removeRoute = function(route) {
+            var cacheKeys, mapKeys, matchingCacheKey, matchingMapKey, routeIndex;
+            if (route) {
+              cacheKeys = Object.keys(this._cache);
+              mapKeys = Object.keys(this._routesMap);
+              routeIndex = this.routes.indexOf(route);
+              if (routeIndex !== -1) {
+                this.routes.splice(routeIndex, 1);
+              }
+              matchingCacheKey = cacheKeys.filter((function(_this) {
+                return function(key) {
+                  return _this._cache[key] === route;
+                };
+              })(this))[0];
+              matchingMapKey = cacheKeys.filter((function(_this) {
+                return function(key) {
+                  return _this._routesMap[key] === route;
+                };
+              })(this))[0];
+              delete this._cache[matchingCacheKey];
+              return delete this._routesMap[matchingMapKey];
+            }
+          };
+
           Router.prototype.listen = function() {
             this.listening = true;
             Routing._onChange(this._listenCallback = (function(_this) {
@@ -361,6 +385,10 @@
           Route.prototype.filters = function(filters) {
             this._dynamicFilters = filters;
             return this;
+          };
+
+          Route.prototype.remove = function() {
+            return this.router._removeRoute(this);
           };
 
           Route.prototype._invokeAction = function(action, relatedPath, relatedRoute) {
