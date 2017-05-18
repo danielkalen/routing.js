@@ -27,6 +27,15 @@ module.exports = class Router
 		return path
 
 
+	_removeBase: (path)->
+		path = path.slice(1) if path[0] is '/'
+		if @_specialRoutes.basePath
+			if path.indexOf(@_specialRoutes.basePath) is 0
+				return path.slice(@_specialRoutes.basePath.length+1)
+
+		return path
+
+
 	_matchPath: (path, firstTime)->
 		return @_specialRoutes.fallback if path is FALLBACK_ROUTE
 		path = helpers.cleanPath(path)

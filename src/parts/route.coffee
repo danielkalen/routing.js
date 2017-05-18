@@ -44,6 +44,7 @@ module.exports = class Route
 		@_invokeAction(@leaveAction, newPath, newRoute)
 
 	_resolveParams: (path)-> if @segments.hasDynamic
+		path = @router._removeBase(path)
 		segments = path.split('/')
 		
 		for dynamicIndex,dynamicSegment of @segments.dynamic

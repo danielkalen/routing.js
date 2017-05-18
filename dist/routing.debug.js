@@ -53,6 +53,18 @@
             return path;
           };
 
+          Router.prototype._removeBase = function(path) {
+            if (path[0] === '/') {
+              path = path.slice(1);
+            }
+            if (this._specialRoutes.basePath) {
+              if (path.indexOf(this._specialRoutes.basePath) === 0) {
+                return path.slice(this._specialRoutes.basePath.length + 1);
+              }
+            }
+            return path;
+          };
+
           Router.prototype._matchPath = function(path, firstTime) {
             var dynamicSegment, index, j, k, len, len1, matchingRoute, matchingSoFar, ref, route, segment, segments, segmentsStrigified;
             if (path === FALLBACK_ROUTE) {
@@ -420,6 +432,7 @@
           Route.prototype._resolveParams = function(path) {
             var dynamicIndex, dynamicSegment, ref, segments;
             if (this.segments.hasDynamic) {
+              path = this.router._removeBase(path);
               segments = path.split('/');
               ref = this.segments.dynamic;
               for (dynamicIndex in ref) {
