@@ -48,6 +48,8 @@ module.exports = class Route
 
 		return
 
+	Object.defineProperty @::, 'map', get: -> @router.map.bind(@router)
+
 
 
 

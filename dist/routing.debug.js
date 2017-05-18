@@ -42,11 +42,11 @@
           }
 
           Router.prototype._applyBase = function(path) {
+            if (path[0] === '/') {
+              path = path.slice(1);
+            }
             if (this._specialRoutes.basePath) {
               if (path.indexOf(this._specialRoutes.basePath) !== 0) {
-                if (path[0] === '/') {
-                  path = path.slice(1);
-                }
                 return this._specialRoutes.basePath + "/" + path;
               }
             }
@@ -139,8 +139,8 @@
               matchingRoute = this._matchPath(path, firstTime);
               path = (matchingRoute != null ? matchingRoute.path : void 0) || path;
               if (matchingRoute && (path !== this.current.path || forceRefresh)) {
-                return (function(_this) {
-                  return function() {
+                (function(_this) {
+                  return (function() {
                     if (!(forceRefresh || path === _this.current.path || path === FALLBACK_ROUTE)) {
                       window.location.hash = path;
                       if (_this.current.path && navDirection !== 'back') {
@@ -173,9 +173,10 @@
                       _this._pendingRoute = Promise.resolve();
                       return _this.go(_this._specialRoutes.fallback ? FALLBACK_ROUTE : _this.prev.path);
                     });
-                  };
+                  });
                 })(this)();
               }
+              return this._pendingRoute;
             }
           };
 
@@ -186,7 +187,7 @@
             segmentsStrigified = segments.join('/');
             matchingRoute = this._routesMap[segmentsStrigified];
             if (!matchingRoute) {
-              matchingRoute = this._routesMap[segmentsStrigified] = new Route(path, segments);
+              matchingRoute = this._routesMap[segmentsStrigified] = new Route(path, segments, this);
             }
             return this._addRoute(matchingRoute);
           };
@@ -212,7 +213,7 @@
           };
 
           Router.prototype.fallback = function(fn) {
-            this._specialRoutes.fallback = new Route(FALLBACK_ROUTE, []);
+            this._specialRoutes.fallback = new Route(FALLBACK_ROUTE, [], this);
             this._specialRoutes.fallback.to(fn);
             return this;
           };
@@ -327,11 +328,13 @@
         var Route, helpers;
         helpers = _s$m(2);
         module.exports = Route = (function() {
-          function Route(path1, segments1) {
+          function Route(path1, segments1, router1) {
             this.path = path1;
             this.segments = segments1;
+            this.router = router1;
             this.originalPath = this.path;
-            this.action = this.enterAction = this.leaveAction = helpers.noop;
+            this.enterAction = this.leaveAction = helpers.noop;
+            this.actions = [];
             this.context = {
               path: this.path,
               segments: this.segments,
@@ -351,7 +354,7 @@
           };
 
           Route.prototype.to = function(fn) {
-            this.action = fn;
+            this.actions.push(fn);
             return this;
           };
 
@@ -360,17 +363,29 @@
             return this;
           };
 
+          Route.prototype._invokeAction = function(action, relatedPath, relatedRoute) {
+            var result;
+            result = action.call(this.context, relatedPath, relatedRoute);
+            if (result === this.router._pendingRoute) {
+              return null;
+            } else {
+              return result;
+            }
+          };
+
           Route.prototype._run = function(path, prevRoute, prevPath) {
             this._resolveParams(path);
-            return Promise.resolve(this.enterAction.call(this.context, prevPath, prevRoute)).then((function(_this) {
+            return Promise.resolve(this._invokeAction(this.enterAction, prevPath, prevRoute)).then((function(_this) {
               return function() {
-                return _this.action.call(_this.context, prevPath, prevRoute);
+                return Promise.all(_this.actions.map(function(action) {
+                  return _this._invokeAction(action, prevPath, prevRoute);
+                }));
               };
             })(this));
           };
 
           Route.prototype._leave = function(newRoute, newPath) {
-            return this.leaveAction.call(this.context, newPath, newRoute);
+            return this._invokeAction(this.leaveAction, newPath, newRoute);
           };
 
           Route.prototype._resolveParams = function(path) {
@@ -384,6 +399,12 @@
               }
             }
           };
+
+          Object.defineProperty(Route.prototype, 'map', {
+            get: function() {
+              return this.router.map.bind(this.router);
+            }
+          });
 
           return Route;
 
