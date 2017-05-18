@@ -212,8 +212,9 @@
             matchingRoute = this._routesMap[segmentsStrigified];
             if (!matchingRoute) {
               matchingRoute = this._routesMap[segmentsStrigified] = new Route(path, segments, this);
+              this._addRoute(matchingRoute);
             }
-            return this._addRoute(matchingRoute);
+            return matchingRoute;
           };
 
           Router.prototype.beforeAll = function(fn) {
@@ -490,7 +491,7 @@
           routers.push(routerInstance = new Router(timeout, ++currentID));
           return routerInstance;
         };
-        this.version = '1.0.5-a';
+        this.version = '1.0.5-b';
         return this;
       };
 
