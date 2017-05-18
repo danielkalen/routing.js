@@ -3,6 +3,8 @@ helpers = import './helpers'
 module.exports = class Route
 	constructor: (@path, @segments, @router)->
 		@originalPath = @path
+		@enterAction = @leaveAction = helpers.noop
+		@actions = []
 		@context = {@path, @segments, params:{}}
 		@_dynamicFilters = {}
 
@@ -16,6 +18,7 @@ module.exports = class Route
 		return @
 
 	to: (fn)->
+		@actions.push fn
 		return @
 
 	filters: (filters)->
@@ -31,8 +34,8 @@ module.exports = class Route
 
 	_run: (path, prevRoute, prevPath)->
 		@_resolveParams(path)
-			.then ()=> @action.call(@context, prevPath, prevRoute)
 		Promise.resolve(@_invokeAction(@enterAction, prevPath, prevRoute))
+			.then ()=> Promise.all @actions.map (action)=> @_invokeAction(action, prevPath, prevRoute)
 
 	_leave: (newRoute, newPath)->
 		@_invokeAction(@leaveAction, newPath, newRoute)
