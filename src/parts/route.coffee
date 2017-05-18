@@ -1,9 +1,8 @@
 helpers = import './helpers'
 
 module.exports = class Route
-	constructor: (@path, @segments)->
+	constructor: (@path, @segments, @router)->
 		@originalPath = @path
-		@action = @enterAction = @leaveAction = helpers.noop
 		@context = {@path, @segments, params:{}}
 		@_dynamicFilters = {}
 
@@ -17,21 +16,26 @@ module.exports = class Route
 		return @
 
 	to: (fn)->
-		@action = fn
 		return @
 
 	filters: (filters)->
 		@_dynamicFilters = filters
 		return @
 
+	_invokeAction: (action, relatedPath, relatedRoute)->
+		result = action.call(@context, relatedPath, relatedRoute)
+		if result is @router._pendingRoute
+			return null
+		else
+			return result
 
 	_run: (path, prevRoute, prevPath)->
 		@_resolveParams(path)
-		Promise.resolve(@enterAction.call(@context, prevPath, prevRoute))
 			.then ()=> @action.call(@context, prevPath, prevRoute)
+		Promise.resolve(@_invokeAction(@enterAction, prevPath, prevRoute))
 
 	_leave: (newRoute, newPath)->
-		@leaveAction.call(@context, newPath, newRoute)
+		@_invokeAction(@leaveAction, newPath, newRoute)
 
 	_resolveParams: (path)-> if @segments.hasDynamic
 		segments = path.split('/')

@@ -19,9 +19,9 @@ module.exports = class Router
 
 
 	_applyBase: (path)->
+		path = path.slice(1) if path[0] is '/'
 		if @_specialRoutes.basePath
 			if path.indexOf(@_specialRoutes.basePath) isnt 0
-				path = path.slice(1) if path[0] is '/'
 				return "#{@_specialRoutes.basePath}/#{path}"
 
 		return path
@@ -109,6 +109,7 @@ module.exports = class Router
 				@current.route = matchingRoute
 				@current.path = path
 			
+
 			@_pendingRoute = @_pendingRoute.then ()=> new Promise (resolve, reject)=>
 				@_pendingPath = path
 				
@@ -124,10 +125,13 @@ module.exports = class Router
 					.then resolve
 					.catch reject
 
+
 			@_pendingRoute.catch (err)=>
 				helpers.logError(err)
 				@_pendingRoute = Promise.resolve()
 				@go(if @_specialRoutes.fallback then FALLBACK_ROUTE else @prev.path)
+		
+		return @_pendingRoute
 
 
 	map: (path)->
@@ -137,7 +141,7 @@ module.exports = class Router
 		matchingRoute = @_routesMap[segmentsStrigified]
 
 		if not matchingRoute
-			matchingRoute = @_routesMap[segmentsStrigified] = new Route(path, segments)
+			matchingRoute = @_routesMap[segmentsStrigified] = new Route(path, segments, @)
 
 		return @_addRoute(matchingRoute)
 
@@ -159,7 +163,7 @@ module.exports = class Router
 		return @
 
 	fallback: (fn)->
-		@_specialRoutes.fallback = new Route(FALLBACK_ROUTE, [])
+		@_specialRoutes.fallback = new Route(FALLBACK_ROUTE, [], @)
 		@_specialRoutes.fallback.to(fn)
 		return @
 
