@@ -12,6 +12,8 @@ replacements = [
 	[/_matchPath/g, '_M']
 	[/_addRoute/g, '_A']
 	[/_listenCallback/g, '_lC']
+	[/_onChange/g, '_oC']
+	[/_registerBasePath/g, '_rB']
 	[/action/g, 'A']
 	[/enterAction/g, 'eA']
 	[/leaveAction/g, 'lA']

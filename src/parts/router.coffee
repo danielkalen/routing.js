@@ -104,7 +104,7 @@ module.exports = class Router
 
 	listen: ()->
 		@listening = true
-		Routing._onChange @_listenCallback = (firstTime)=>
+		Routing._onChange @, @_listenCallback = (firstTime)=>
 			@go(window.location.hash, false, firstTime, null, true)
 
 		return @
@@ -179,7 +179,7 @@ module.exports = class Router
 		return @
 
 	base: (path)->
-		@_specialRoutes.basePath = helpers.cleanPath(path)
+		Routing._registerBasePath @_specialRoutes.basePath = helpers.cleanPath(path)
 		return @
 
 	root: (path)->

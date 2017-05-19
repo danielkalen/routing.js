@@ -5,14 +5,31 @@ do ()->
 	Routing = new ()->
 		changeCallbacks = []
 		routers = []
+		basePaths = []
 		listening = false
 		currentID = 0
 
 		dispatchChange = (firstTime)->
-			callback(firstTime is true) for callback in changeCallbacks
+			# callback(firstTime is true) for callback in changeCallbacks
+			path = helpers.cleanPath(window.location.hash)
+			applicableCallbacks = changeCallbacks
+			
+			if path and basePaths.length
+				for basePath in basePaths
+					if path.indexOf(basePath) is 0
+						
+						applicableCallbacks = []
+						for callback in changeCallbacks
+							routerBasePath = callback.router._specialRoutes.basePath
+							applicableCallbacks.push(callback) if routerBasePath is basePath
+						
+						break
+
+			callback(firstTime is true) for callback in applicableCallbacks
 			return
 
-		@_onChange = (callback)->
+		@_onChange = (router, callback)->
+			callback.router = router
 			changeCallbacks.push(callback)
 
 			if listening
@@ -26,6 +43,9 @@ do ()->
 					setInterval dispatchChange, 100
 
 				dispatchChange(true)
+
+		@_registerBasePath = (path)->
+			basePaths.push(path)
 
 		@killAll = ()->
 			routersToKill = routers.slice()

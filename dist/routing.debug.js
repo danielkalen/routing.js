@@ -150,7 +150,7 @@
 
           Router.prototype.listen = function() {
             this.listening = true;
-            Routing._onChange(this._listenCallback = (function(_this) {
+            Routing._onChange(this, this._listenCallback = (function(_this) {
               return function(firstTime) {
                 return _this.go(window.location.hash, false, firstTime, null, true);
               };
@@ -240,7 +240,7 @@
           };
 
           Router.prototype.base = function(path) {
-            this._specialRoutes.basePath = helpers.cleanPath(path);
+            Routing._registerBasePath(this._specialRoutes.basePath = helpers.cleanPath(path));
             return this;
           };
 
@@ -448,6 +448,12 @@
             }
           });
 
+          Object.defineProperty(Route.prototype, 'listen', {
+            get: function() {
+              return this.router.listen.bind(this.router);
+            }
+          });
+
           return Route;
 
         })();
@@ -461,19 +467,39 @@
       Router = _s$m(1);
       helpers = _s$m(2);
       Routing = new function() {
-        var changeCallbacks, currentID, dispatchChange, listening, routers;
+        var basePaths, changeCallbacks, currentID, dispatchChange, listening, routers;
         changeCallbacks = [];
         routers = [];
+        basePaths = [];
         listening = false;
         currentID = 0;
         dispatchChange = function(firstTime) {
-          var callback, j, len;
-          for (j = 0, len = changeCallbacks.length; j < len; j++) {
-            callback = changeCallbacks[j];
+          var applicableCallbacks, basePath, callback, j, k, len, len1, len2, n, path, routerBasePath;
+          path = helpers.cleanPath(window.location.hash);
+          applicableCallbacks = changeCallbacks;
+          if (path && basePaths.length) {
+            for (j = 0, len = basePaths.length; j < len; j++) {
+              basePath = basePaths[j];
+              if (path.indexOf(basePath) === 0) {
+                applicableCallbacks = [];
+                for (k = 0, len1 = changeCallbacks.length; k < len1; k++) {
+                  callback = changeCallbacks[k];
+                  routerBasePath = callback.router._specialRoutes.basePath;
+                  if (routerBasePath === basePath) {
+                    applicableCallbacks.push(callback);
+                  }
+                }
+                break;
+              }
+            }
+          }
+          for (n = 0, len2 = applicableCallbacks.length; n < len2; n++) {
+            callback = applicableCallbacks[n];
             callback(firstTime === true);
           }
         };
-        this._onChange = function(callback) {
+        this._onChange = function(router, callback) {
+          callback.router = router;
           changeCallbacks.push(callback);
           if (listening) {
             return callback(true);
@@ -488,6 +514,9 @@
             }
             return dispatchChange(true);
           }
+        };
+        this._registerBasePath = function(path) {
+          return basePaths.push(path);
         };
         this.killAll = function() {
           var j, len, router, routersToKill;
