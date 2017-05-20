@@ -5,7 +5,7 @@
   "main": "dist/routing.js",
   "browser": {
     "./debug": "dist/routing.debug.js",
-    "./src": "src/routing.coffee"
+    "./src": "src/index.coffee"
   },
   "scripts": {
     "postversion": "echo \\'$(json -f package.json version)\\' > .config/.version.coffee && npm run build",
@@ -20,7 +20,7 @@
     "sauce-connect": "sc -u routingjs -k 9321bba9-2293-4e66-8fb5-06e255fbaa51",
     "build": "npm run compile && npm run minify",
     "compile": "npm run compile:js && npm run compile:test",
-    "compile:js": "simplyimport -i src/routing.coffee | coffee -cbs --no-header > dist/routing.debug.js",
+    "compile:js": "simplyimport -i src/index.coffee | coffee -cbs --no-header > dist/routing.debug.js",
     "compile:test": "simplyimport -i test/test.coffee | coffee -cbs > test/test.js",
     "minify": "npm run minify:super && npm run minify:manual && npm run minify:simple",
     "minify:simple": "uglifyjs dist/routing.debug.js -m -c keep_fargs,unused=false -o dist/routing.js",
