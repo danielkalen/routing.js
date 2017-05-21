@@ -2,6 +2,7 @@ mocha.setup('tdd')
 mocha.slow(700)
 # mocha.timeout(12000)
 mocha.bail() unless window.location.hostname
+# Promise.config longStackTraces:true
 chai.use require('chai-spies')
 expect = chai.expect
 setHash = (targetHash, delay=1)-> new Promise (resolve)->
@@ -52,18 +53,21 @@ suite "Routing.JS", ()->
 		
 		Router.map('/another')
 		Router.map('/test').to ()-> invokeCount++
-		Router.listen()
+		Promise.resolve(Router.listen())
+			.then ()->
+				expect(invokeCount).to.equal 0
+				setHash('/test')
 		
-		expect(invokeCount).to.equal 0
-
-		setHash('/test').then ()->
-			expect(invokeCount).to.equal 1
-
-			setHash('/another').then ()->
+			.then ()->
 				expect(invokeCount).to.equal 1
+				setHash('/another')
 
-				setHash('test').then ()->
-					expect(invokeCount).to.equal 2
+			.then ()->
+				expect(invokeCount).to.equal 1
+				setHash('test')
+
+			.then ()->
+				expect(invokeCount).to.equal 2
 
 
 	test "Route functions will be invoked within a dedicated context", ()->
@@ -71,33 +75,40 @@ suite "Routing.JS", ()->
 		invokeCount = 0
 		prevContext = null
 
-		Router.map('/another')
-		Router.map('/test/path').to ()->
-			invokeCount++
-			expect(@constructor).to.equal Object
-			expect(@params).to.eql {}
-			expect(@path).to.equal 'test/path'
-			expect(@segments.length).to.equal 2
+		Promise.resolve()
+			.then ()->
+				Router.map('/another')
+				Router.map('/test/path').to ()->
+					invokeCount++
+					expect(@constructor).to.equal Object
+					expect(@params).to.eql {}
+					expect(@path).to.equal 'test/path'
+					expect(@segments.length).to.equal 2
 
-			if prevContext
-				expect(@).to.equal prevContext
-				expect(@persistent).to.equal 'yes'
+					if prevContext
+						expect(@).to.equal prevContext
+						expect(@persistent).to.equal 'yes'
 
-			@persistent = 'yes'
-			prevContext = @
+					@persistent = 'yes'
+					prevContext = @
 		
+				Router.listen()
+			.delay()
+			.then ()->
+				expect(invokeCount).to.equal 0
+				setHash('/test/path')
 
-		Router.listen()		
-		expect(invokeCount).to.equal 0
-
-		setHash('/test/path').then ()->
-			expect(invokeCount).to.equal 1
-
-			setHash('/another').then ()->
+			.then ()->
 				expect(invokeCount).to.equal 1
+				setHash('/another')
 
-				setHash('/test/path').then ()->
-					expect(invokeCount).to.equal 2
+			.then ()->
+				expect(invokeCount).to.equal 1
+				setHash('/test/path')
+
+			.then ()->
+				expect(invokeCount).to.equal 2
+
 
 
 	test "A route can have dynamic segments which will be available with resolved values in this.params", ()->
@@ -105,82 +116,130 @@ suite "Routing.JS", ()->
 		invokeCount = 0
 		context = null
 
-		Router.map('/user/:ID/:page').to ()-> invokeCount++; context = @
-		Router.listen()
+		Promise.resolve()
+			.then ()->
+				Router.map('/user/:ID/:page').to ()-> invokeCount++; context = @
+				Router.map('/admin/:ID/:name?/:page?').to ()-> invokeCount++; context = @
+				Router.listen()
 
-		setHash('/user/12/profile').then ()->
-			expect(context).not.to.equal null
-			expect(context.params.ID).to.equal '12'
-			expect(context.params.page).to.equal 'profile'
-			expect(invokeCount).to.equal 1
+			.delay()
+			.then ()->
+				setHash('/user/12/profile')
+
+			.then ()->
+				expect(context).not.to.equal null
+				expect(context.params.ID).to.equal '12'
+				expect(context.params.page).to.equal 'profile'
+				expect(invokeCount).to.equal 1
+				setHash('/user/12/settings')
 			
-			setHash('/user/12/settings').then ()->
+			.then ()->
 				expect(context.params.ID).to.equal '12'
 				expect(context.params.page).to.equal 'settings'
 				expect(invokeCount).to.equal 2
+				setHash('/user/25/settings')
+
+			.then ()->
+				expect(context.params.ID).to.equal '25'
+				expect(context.params.page).to.equal 'settings'
+				expect(invokeCount).to.equal 3
+				setHash('/user/29')
+			
+			.then ()->	
+				expect(context.params.ID).to.equal '25'
+				expect(context.params.page).to.equal 'settings'
+				expect(invokeCount).to.equal 3
+				setHash('/admin/29/kevin/profile')
+
+			.then ()->
+				expect(context.params.ID).to.equal '29'
+				expect(context.params.name).to.equal 'kevin'
+				expect(context.params.page).to.equal 'profile'
+				expect(invokeCount).to.equal 4
+				setHash('/admin/16/arnold')
+
+			.then ()->
+				expect(context.params.ID).to.equal '16'
+				expect(context.params.name).to.equal 'arnold'
+				expect(context.params.page).to.equal ''
+				expect(invokeCount).to.equal 5
+				setHash('/admin/54')
+
+			.then ()->
+				expect(context.params.ID).to.equal '54'
+				expect(context.params.name).to.equal ''
+				expect(context.params.page).to.equal ''
+				expect(invokeCount).to.equal 6
 				
-				setHash('/user/25/settings').then ()->
-					expect(context.params.ID).to.equal '25'
-					expect(context.params.page).to.equal 'settings'
-					expect(invokeCount).to.equal 3
-					
-					setHash('/user/29').then ()->
-						expect(context.params.ID).to.equal '29'
-						expect(context.params.page).to.equal ''
-						expect(invokeCount).to.equal 4
+				
 
 
 	test "A route can be mapped to an entering function which will be invoked when entering the route (before regular action)", ()->
 		Router = Routing.Router()
 		invokeCount = before:0, reg:0
 
-		Router.map('/def456')
-		Router.map('/abc123')
-			.entering ()-> invokeCount.before++; expect(invokeCount.before - invokeCount.reg).to.equal(1)
-			.to ()-> invokeCount.reg++
+		Promise.resolve()
+			.then ()->
+				Router.map('/def456')
+				Router.map('/abc123')
+					.entering ()-> invokeCount.before++; expect(invokeCount.before - invokeCount.reg).to.equal(1)
+					.to ()-> invokeCount.reg++
 
-		Router.listen()
-		
-		expect(invokeCount.before).to.equal 0
-		expect(invokeCount.reg).to.equal 0
+				Router.listen()
 
-		setHash('/abc123').then ()->
-			expect(invokeCount.before).to.equal 1
-			expect(invokeCount.reg).to.equal 1
+			.delay()
+			.then ()->
+				expect(invokeCount.before).to.equal 0
+				expect(invokeCount.reg).to.equal 0
+				setHash('/abc123')
 
-			setHash('/def456').then ()->
+			.then ()->
 				expect(invokeCount.before).to.equal 1
 				expect(invokeCount.reg).to.equal 1
+				setHash('/def456')
 
-				setHash('/abc123').then ()->
-					expect(invokeCount.before).to.equal 2
+			.then ()->
+				expect(invokeCount.before).to.equal 1
+				expect(invokeCount.reg).to.equal 1
+				setHash('/abc123')
+
+			.then ()->
+				expect(invokeCount.before).to.equal 2
+		
 
 
 	test "A route can be mapped to a leaving function which will be invoked when leaving the route", ()->
 		Router = Routing.Router()
 		invokeCount = after:0, reg:0
 
-		Router.map('/def456')
-		Router.map('/abc123')
-			.to ()-> invokeCount.reg++
-			.leaving ()-> invokeCount.after++
+		Promise.resolve()
+			.then ()->
+				Router.map('/def456')
+				Router.map('/abc123')
+					.to ()-> invokeCount.reg++
+					.leaving ()-> invokeCount.after++
 
-		Router.listen()
-		
-		expect(invokeCount.reg).to.equal 0
-		expect(invokeCount.after).to.equal 0
+				Router.listen()
 
-		setHash('/abc123').then ()->
-			expect(invokeCount.reg).to.equal 1
-			expect(invokeCount.after).to.equal 0
+			.delay()
+			.then ()->
+				expect(invokeCount.reg).to.equal 0
+				expect(invokeCount.after).to.equal 0
+				setHash('/abc123')
 
-			setHash('/def456').then ()->
+			.then ()->
+				expect(invokeCount.reg).to.equal 1
+				expect(invokeCount.after).to.equal 0
+				setHash('/def456')
+
+			.then ()->
 				expect(invokeCount.reg).to.equal 1
 				expect(invokeCount.after).to.equal 1
+				setHash('/abc123')
 
-				setHash('/abc123').then ()->
-					expect(invokeCount.reg).to.equal 2
-					expect(invokeCount.after).to.equal 1
+			.then ()->
+				expect(invokeCount.reg).to.equal 2
+				expect(invokeCount.after).to.equal 1
 
 
 	test "Route actions can return a promise which will be waited to be resolved before continuing", ()->
@@ -191,56 +250,68 @@ suite "Routing.JS", ()->
 			delays.before = new Promise ()->
 			delays.abc123 = new Promise ()->
 			delays.after = new Promise ()->
+			return null
 
-		Router.map('/abc123')
-			.entering ()-> invokeCount.before++; delays.before
-			.to ()-> invokeCount.abc123++; delays.abc123
+		Promise.resolve()
+			.then ()->
+				Router.map('/abc123')
+					.entering ()-> invokeCount.before++; delays.before
+					.to ()-> invokeCount.abc123++; delays.abc123
 		
-		Router.map('/def456')
-			.to ()-> invokeCount.def456++;
-			.leaving ()-> invokeCount.after++; delays.after
+				Router.map('/def456')
+					.to ()-> invokeCount.def456++;
+					.leaving ()-> invokeCount.after++; delays.after
 
-		Router.listen()
-		initDelays()
+				Router.listen()
+				initDelays()
 
-		setHash('/abc123').then ()->
-			expect(invokeCount.before).to.equal 1
-			expect(invokeCount.abc123).to.equal 0
-			expect(invokeCount.def456).to.equal 0
-			expect(invokeCount.after).to.equal 0
+			.delay()
+			.then ()->
+				setHash('/abc123')
 
-			delays.before._fulfill()
-			delays.before.delay().then ()->
+			.then ()->
+				expect(invokeCount.before).to.equal 1
+				expect(invokeCount.abc123).to.equal 0
+				expect(invokeCount.def456).to.equal 0
+				expect(invokeCount.after).to.equal 0
+				delays.before._fulfill()
+				delays.before.delay()
+
+			.then ()->
 				expect(invokeCount.before).to.equal 1
 				expect(invokeCount.abc123).to.equal 1
 				expect(invokeCount.def456).to.equal 0
 				expect(invokeCount.after).to.equal 0
+				setHash('/def456')
 
-				setHash('/def456').then ()->
-					expect(invokeCount.before).to.equal 1
-					expect(invokeCount.abc123).to.equal 1
-					expect(invokeCount.def456).to.equal 0
-					expect(invokeCount.after).to.equal 0
+			.then ()->
+				expect(invokeCount.before).to.equal 1
+				expect(invokeCount.abc123).to.equal 1
+				expect(invokeCount.def456).to.equal 0
+				expect(invokeCount.after).to.equal 0
+				delays.abc123._fulfill()
+				delays.abc123.delay()
 
-					delays.abc123._fulfill()
-					delays.abc123.delay().then ()->
-						expect(invokeCount.before).to.equal 1
-						expect(invokeCount.abc123).to.equal 1
-						expect(invokeCount.def456).to.equal 1
-						expect(invokeCount.after).to.equal 0
+			.then ()->
+				expect(invokeCount.before).to.equal 1
+				expect(invokeCount.abc123).to.equal 1
+				expect(invokeCount.def456).to.equal 1
+				expect(invokeCount.after).to.equal 0
+				setHash('/abc123')
 
-						setHash('/abc123').then ()->
-							expect(invokeCount.before).to.equal 1
-							expect(invokeCount.abc123).to.equal 1
-							expect(invokeCount.def456).to.equal 1
-							expect(invokeCount.after).to.equal 1
+			.then ()->
+				expect(invokeCount.before).to.equal 1
+				expect(invokeCount.abc123).to.equal 1
+				expect(invokeCount.def456).to.equal 1
+				expect(invokeCount.after).to.equal 1
+				delays.after._fulfill()
+				delays.after.delay()
 
-							delays.after._fulfill()
-							delays.after.delay().then ()->
-								expect(invokeCount.before).to.equal 2
-								expect(invokeCount.abc123).to.equal 2
-								expect(invokeCount.def456).to.equal 1
-								expect(invokeCount.after).to.equal 1
+			.then ()->
+				expect(invokeCount.before).to.equal 2
+				expect(invokeCount.abc123).to.equal 2
+				expect(invokeCount.def456).to.equal 1
+				expect(invokeCount.after).to.equal 1
 
 
 	test "A root route can be specified which will be defaulted to on Router.listen() if there isn't a matching route for the current hash", ()->
@@ -281,34 +352,41 @@ suite "Routing.JS", ()->
 	test "A fallback route (e.g. 404) can be specified to be defaulted to when the specified hash has no matching routes", ()->
 		invokeCount = abc:0, fallback:0
 		Router = Routing.Router()
-		Router.map('abc').to ()-> invokeCount.abc++
-		Router.fallback ()-> invokeCount.fallback++
-		Router.listen()
 
-		Promise.delay().then ()->
-			expect(invokeCount.abc).to.equal 0
-			expect(invokeCount.fallback).to.equal 1
-			expect(getHash()).to.equal ''
+		Promise.resolve()
+			.then ()->
+				Router.map('abc').to ()-> invokeCount.abc++
+				Router.fallback ()-> invokeCount.fallback++
+				Router.listen()
 			
-			setHash('abc').then ()->
+			.delay()
+			.then ()->
+				expect(invokeCount.abc).to.equal 0
+				expect(invokeCount.fallback).to.equal 1
+				expect(getHash()).to.equal ''
+				setHash('abc')
+			
+			.then ()->				
 				expect(getHash()).to.equal 'abc'
 				expect(invokeCount.abc).to.equal 1
 				expect(invokeCount.fallback).to.equal 1
+				setHash('def')
 			
-				setHash('def').then ()->
-					expect(getHash()).to.equal 'def'
-					expect(invokeCount.abc).to.equal 1
-					expect(invokeCount.fallback).to.equal 2
-			
-					setHash('').then ()->
-						expect(getHash()).to.equal ''
-						expect(invokeCount.abc).to.equal 1
-						expect(invokeCount.fallback).to.equal 3
+			.then ()->				
+				expect(getHash()).to.equal 'def'
+				expect(invokeCount.abc).to.equal 1
+				expect(invokeCount.fallback).to.equal 2
+				setHash('')
+		
+			.then ()->				
+				expect(getHash()).to.equal ''
+				expect(invokeCount.abc).to.equal 1
+				expect(invokeCount.fallback).to.equal 3
+				Router.fallback ()-> setHash('abc')
+				setHash('aksjdfh')
 
-						
-						Router.fallback ()-> setHash('abc')
-						setHash('aksjdfh').then ()->
-							expect(getHash()).to.equal 'abc'
+			.then ()->				
+				expect(getHash()).to.equal 'abc'
 
 
 	test "A failed route transition will cause the router to go to the fallback route if exists", ()->
@@ -341,16 +419,15 @@ suite "Routing.JS", ()->
 		invokeCount = 0
 		consoleError = console.error
 		console.error = chai.spy()
+		Router = Routing.Router()
 
 		Promise.delay()
 			.then ()-> 
-				Router = Routing.Router()
 				Router.map('abc').to ()-> invokeCount++
 				Router.map('def').to ()-> Promise.delay().then ()-> throw new Error 'rejected'
 				Router.listen()
 			
 			.delay()
-			
 			.then ()->
 				expect(invokeCount).to.equal 0
 				expect(getHash()).to.equal ''
@@ -492,68 +569,79 @@ suite "Routing.JS", ()->
 		incCount = (prop)-> invokeCount[prop] ?= 0; invokeCount[prop]++
 		
 		Router = Routing.Router()
-		Router.map('AAA').to ()-> incCount('AAA')
-		Router.map('BBB').to ()-> incCount('BBB')
-		Router.map('CCC').to ()-> incCount('CCC')
-		Router.map('DDD').to ()-> incCount('DDD')
-		Router.listen()
+		Promise.resolve()
+			.then ()->
+				Router.map('AAA').to ()-> incCount('AAA')
+				Router.map('BBB').to ()-> incCount('BBB')
+				Router.map('CCC').to ()-> incCount('CCC')
+				Router.map('DDD').to ()-> incCount('DDD')
+				Router.listen()
 
-		Promise.delay().then ()->
-			Router.fallback ()-> incCount('fallback')
-			expect(invokeCount.AAA).to.equal undefined
-			expect(invokeCount.BBB).to.equal undefined
-			expect(invokeCount.CCC).to.equal undefined
-			expect(invokeCount.DDD).to.equal undefined
-			expect(invokeCount.fallback).to.equal undefined
+			.delay()
+			.then ()->
+				Router.fallback ()-> incCount('fallback')
+				expect(invokeCount.AAA).to.equal undefined
+				expect(invokeCount.BBB).to.equal undefined
+				expect(invokeCount.CCC).to.equal undefined
+				expect(invokeCount.DDD).to.equal undefined
+				expect(invokeCount.fallback).to.equal undefined
+				Router.forward()
 
-			Router.forward().then ()->
+			.then ()->
+				expect(invokeCount.fallback).to.equal undefined
+				Router.back()
+
+			.then ()->
 				expect(invokeCount.fallback).to.equal undefined
 
-				Router.back().then ()->
-					expect(invokeCount.fallback).to.equal undefined
-					Promise.resolve()
-						.then ()-> setHash('AAA')
-						.then ()-> setHash('BBB')
-						.then ()-> setHash('CCC')
-						.then ()-> setHash('DDD')
-						.then ()->
-							expect(invokeCount.AAA).to.equal 1
-							expect(invokeCount.BBB).to.equal 1
-							expect(invokeCount.CCC).to.equal 1
-							expect(invokeCount.DDD).to.equal 1
-							expect(invokeCount.fallback).to.equal undefined
+			.then ()-> setHash('AAA')
+			.then ()-> setHash('BBB')
+			.then ()-> setHash('CCC')
+			.then ()-> setHash('DDD')
+			.then ()->
+				expect(invokeCount.AAA).to.equal 1
+				expect(invokeCount.BBB).to.equal 1
+				expect(invokeCount.CCC).to.equal 1
+				expect(invokeCount.DDD).to.equal 1
+				expect(invokeCount.fallback).to.equal undefined
+				Router.back()
 
-							Router.back().then ()->
-								expect(invokeCount.CCC).to.equal 2
-								
-								Router.back().then ()->
-									expect(invokeCount.BBB).to.equal 2
+			.then ()->
+				expect(invokeCount.CCC).to.equal 2
+				Router.back()
+					
+			.then ()->
+				expect(invokeCount.BBB).to.equal 2
+				Router.forward().then ()-> Router.forward()
 
-									Router.forward().then ()-> Router.forward().then ()->
-										expect(invokeCount.AAA).to.equal 1
-										expect(invokeCount.BBB).to.equal 2
-										expect(invokeCount.CCC).to.equal 3
-										expect(invokeCount.DDD).to.equal 2
+			.then ()->
+				expect(invokeCount.AAA).to.equal 1
+				expect(invokeCount.BBB).to.equal 2
+				expect(invokeCount.CCC).to.equal 3
+				expect(invokeCount.DDD).to.equal 2
+				Router.back().then ()-> Router.back()
 
-										Router.back().then ()-> Router.back().then ()->
-											expect(invokeCount.AAA).to.equal 1
-											expect(invokeCount.BBB).to.equal 3
-											expect(invokeCount.CCC).to.equal 4
-											expect(invokeCount.DDD).to.equal 2
+			.then ()->
+				expect(invokeCount.AAA).to.equal 1
+				expect(invokeCount.BBB).to.equal 3
+				expect(invokeCount.CCC).to.equal 4
+				expect(invokeCount.DDD).to.equal 2
+				Router.back()
 
-											Router.back().then ()->
-												expect(invokeCount.AAA).to.equal 2
-												expect(invokeCount.BBB).to.equal 3
-												expect(invokeCount.CCC).to.equal 4
-												expect(invokeCount.DDD).to.equal 2
-												expect(getHash()).to.equal 'AAA'
+			.then ()->
+				expect(invokeCount.AAA).to.equal 2
+				expect(invokeCount.BBB).to.equal 3
+				expect(invokeCount.CCC).to.equal 4
+				expect(invokeCount.DDD).to.equal 2
+				expect(getHash()).to.equal 'AAA'
+				Router.back()
 
-												Router.back().then ()->
-													expect(invokeCount.AAA).to.equal 2
-													expect(invokeCount.BBB).to.equal 3
-													expect(invokeCount.CCC).to.equal 4
-													expect(invokeCount.DDD).to.equal 2
-													expect(getHash()).to.equal 'AAA'
+			.then ()->
+				expect(invokeCount.AAA).to.equal 2
+				expect(invokeCount.BBB).to.equal 3
+				expect(invokeCount.CCC).to.equal 4
+				expect(invokeCount.DDD).to.equal 2
+				expect(getHash()).to.equal 'AAA'
 
 
 	test "Router.refresh() can be used to create refresh the current route", ()->
@@ -613,39 +701,44 @@ suite "Routing.JS", ()->
 			Router = Routing.Router()
 			
 			Router.fallback ()-> invokeCount.fallback++
-			Router.map('/api/:version/:function/:username')
+			Router.map('/api/:version/:function/:username?')
 				.to ()-> invokeCount.route++; params = @params
 				.filters 
 					version: (version)-> version.length is 1 and /\d/.test(version)
 					username: (username)-> username and /^[^\d]+$/.test(username)
 
-			Router.listen()
-			Promise.delay().then ()->
-				expect(invokeCount.route).to.equal 0
-				expect(invokeCount.fallback).to.equal 1
-				
-				setHash('/api/3/anything/daniel').then ()->
+			Promise.resolve(Router.listen()).delay()
+				.then ()->
+					expect(invokeCount.route).to.equal 0
+					expect(invokeCount.fallback).to.equal 1
+					setHash('/api/3/anything/daniel')
+
+				.then ()->
 					expect(invokeCount.route).to.equal 1
 					expect(invokeCount.fallback).to.equal 1
 					expect(params).to.eql {version:'3', function:'anything', username:'daniel'}
+					setHash('/api/3/9/daniel')
 				
-					setHash('/api/3/9/daniel').then ()->
-						expect(invokeCount.route).to.equal 2
-						expect(invokeCount.fallback).to.equal 1
-						expect(params).to.eql {version:'3', function:'9', username:'daniel'}
-				
-						setHash('/api/13/anything/daniel').then ()->
-							expect(invokeCount.route).to.equal 2
-							expect(invokeCount.fallback).to.equal 2
-				
-							setHash('/api/5/anything/dani3el').then ()->
-								expect(invokeCount.route).to.equal 2
-								expect(invokeCount.fallback).to.equal 3
-				
-								setHash('/api/5//kevin').then ()->
-									expect(invokeCount.route).to.equal 3
-									expect(invokeCount.fallback).to.equal 3
-									expect(params).to.eql {version:'5', function:'', username:'kevin'}
+				.then ()->
+					expect(invokeCount.route).to.equal 2
+					expect(invokeCount.fallback).to.equal 1
+					expect(params).to.eql {version:'3', function:'9', username:'daniel'}
+					setHash('/api/13/anything/daniel')
+
+				.then ()->
+					expect(invokeCount.route).to.equal 2
+					expect(invokeCount.fallback).to.equal 2
+					setHash('/api/5/anything/dani3el')
+		
+				.then ()->
+					expect(invokeCount.route).to.equal 2
+					expect(invokeCount.fallback).to.equal 3
+					setHash('/api/5//kevin')
+	
+				.then ()->
+					expect(invokeCount.route).to.equal 3
+					expect(invokeCount.fallback).to.equal 3
+					expect(params).to.eql {version:'5', function:'', username:'kevin'}
 
 
 	test "Routing.Router() accpets a number-type argument which will be used as the route loading timeout (ms)", ()->

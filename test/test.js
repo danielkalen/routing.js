@@ -571,16 +571,17 @@
         Router.map('/test').to(function() {
           return invokeCount++;
         });
-        Router.listen();
-        expect(invokeCount).to.equal(0);
-        return setHash('/test').then(function() {
+        return Promise.resolve(Router.listen()).then(function() {
+          expect(invokeCount).to.equal(0);
+          return setHash('/test');
+        }).then(function() {
           expect(invokeCount).to.equal(1);
-          return setHash('/another').then(function() {
-            expect(invokeCount).to.equal(1);
-            return setHash('test').then(function() {
-              return expect(invokeCount).to.equal(2);
-            });
-          });
+          return setHash('/another');
+        }).then(function() {
+          expect(invokeCount).to.equal(1);
+          return setHash('test');
+        }).then(function() {
+          return expect(invokeCount).to.equal(2);
         });
       });
       test("Route functions will be invoked within a dedicated context", function() {
@@ -588,30 +589,33 @@
         Router = Routing.Router();
         invokeCount = 0;
         prevContext = null;
-        Router.map('/another');
-        Router.map('/test/path').to(function() {
-          invokeCount++;
-          expect(this.constructor).to.equal(Object);
-          expect(this.params).to.eql({});
-          expect(this.path).to.equal('test/path');
-          expect(this.segments.length).to.equal(2);
-          if (prevContext) {
-            expect(this).to.equal(prevContext);
-            expect(this.persistent).to.equal('yes');
-          }
-          this.persistent = 'yes';
-          return prevContext = this;
-        });
-        Router.listen();
-        expect(invokeCount).to.equal(0);
-        return setHash('/test/path').then(function() {
-          expect(invokeCount).to.equal(1);
-          return setHash('/another').then(function() {
-            expect(invokeCount).to.equal(1);
-            return setHash('/test/path').then(function() {
-              return expect(invokeCount).to.equal(2);
-            });
+        return Promise.resolve().then(function() {
+          Router.map('/another');
+          Router.map('/test/path').to(function() {
+            invokeCount++;
+            expect(this.constructor).to.equal(Object);
+            expect(this.params).to.eql({});
+            expect(this.path).to.equal('test/path');
+            expect(this.segments.length).to.equal(2);
+            if (prevContext) {
+              expect(this).to.equal(prevContext);
+              expect(this.persistent).to.equal('yes');
+            }
+            this.persistent = 'yes';
+            return prevContext = this;
           });
+          return Router.listen();
+        }).delay().then(function() {
+          expect(invokeCount).to.equal(0);
+          return setHash('/test/path');
+        }).then(function() {
+          expect(invokeCount).to.equal(1);
+          return setHash('/another');
+        }).then(function() {
+          expect(invokeCount).to.equal(1);
+          return setHash('/test/path');
+        }).then(function() {
+          return expect(invokeCount).to.equal(2);
         });
       });
       test("A route can have dynamic segments which will be available with resolved values in this.params", function() {
@@ -619,31 +623,56 @@
         Router = Routing.Router();
         invokeCount = 0;
         context = null;
-        Router.map('/user/:ID/:page').to(function() {
-          invokeCount++;
-          return context = this;
-        });
-        Router.listen();
-        return setHash('/user/12/profile').then(function() {
+        return Promise.resolve().then(function() {
+          Router.map('/user/:ID/:page').to(function() {
+            invokeCount++;
+            return context = this;
+          });
+          Router.map('/admin/:ID/:name?/:page?').to(function() {
+            invokeCount++;
+            return context = this;
+          });
+          return Router.listen();
+        }).delay().then(function() {
+          return setHash('/user/12/profile');
+        }).then(function() {
           expect(context).not.to.equal(null);
           expect(context.params.ID).to.equal('12');
           expect(context.params.page).to.equal('profile');
           expect(invokeCount).to.equal(1);
-          return setHash('/user/12/settings').then(function() {
-            expect(context.params.ID).to.equal('12');
-            expect(context.params.page).to.equal('settings');
-            expect(invokeCount).to.equal(2);
-            return setHash('/user/25/settings').then(function() {
-              expect(context.params.ID).to.equal('25');
-              expect(context.params.page).to.equal('settings');
-              expect(invokeCount).to.equal(3);
-              return setHash('/user/29').then(function() {
-                expect(context.params.ID).to.equal('29');
-                expect(context.params.page).to.equal('');
-                return expect(invokeCount).to.equal(4);
-              });
-            });
-          });
+          return setHash('/user/12/settings');
+        }).then(function() {
+          expect(context.params.ID).to.equal('12');
+          expect(context.params.page).to.equal('settings');
+          expect(invokeCount).to.equal(2);
+          return setHash('/user/25/settings');
+        }).then(function() {
+          expect(context.params.ID).to.equal('25');
+          expect(context.params.page).to.equal('settings');
+          expect(invokeCount).to.equal(3);
+          return setHash('/user/29');
+        }).then(function() {
+          expect(context.params.ID).to.equal('25');
+          expect(context.params.page).to.equal('settings');
+          expect(invokeCount).to.equal(3);
+          return setHash('/admin/29/kevin/profile');
+        }).then(function() {
+          expect(context.params.ID).to.equal('29');
+          expect(context.params.name).to.equal('kevin');
+          expect(context.params.page).to.equal('profile');
+          expect(invokeCount).to.equal(4);
+          return setHash('/admin/16/arnold');
+        }).then(function() {
+          expect(context.params.ID).to.equal('16');
+          expect(context.params.name).to.equal('arnold');
+          expect(context.params.page).to.equal('');
+          expect(invokeCount).to.equal(5);
+          return setHash('/admin/54');
+        }).then(function() {
+          expect(context.params.ID).to.equal('54');
+          expect(context.params.name).to.equal('');
+          expect(context.params.page).to.equal('');
+          return expect(invokeCount).to.equal(6);
         });
       });
       test("A route can be mapped to an entering function which will be invoked when entering the route (before regular action)", function() {
@@ -653,26 +682,29 @@
           before: 0,
           reg: 0
         };
-        Router.map('/def456');
-        Router.map('/abc123').entering(function() {
-          invokeCount.before++;
-          return expect(invokeCount.before - invokeCount.reg).to.equal(1);
-        }).to(function() {
-          return invokeCount.reg++;
-        });
-        Router.listen();
-        expect(invokeCount.before).to.equal(0);
-        expect(invokeCount.reg).to.equal(0);
-        return setHash('/abc123').then(function() {
+        return Promise.resolve().then(function() {
+          Router.map('/def456');
+          Router.map('/abc123').entering(function() {
+            invokeCount.before++;
+            return expect(invokeCount.before - invokeCount.reg).to.equal(1);
+          }).to(function() {
+            return invokeCount.reg++;
+          });
+          return Router.listen();
+        }).delay().then(function() {
+          expect(invokeCount.before).to.equal(0);
+          expect(invokeCount.reg).to.equal(0);
+          return setHash('/abc123');
+        }).then(function() {
           expect(invokeCount.before).to.equal(1);
           expect(invokeCount.reg).to.equal(1);
-          return setHash('/def456').then(function() {
-            expect(invokeCount.before).to.equal(1);
-            expect(invokeCount.reg).to.equal(1);
-            return setHash('/abc123').then(function() {
-              return expect(invokeCount.before).to.equal(2);
-            });
-          });
+          return setHash('/def456');
+        }).then(function() {
+          expect(invokeCount.before).to.equal(1);
+          expect(invokeCount.reg).to.equal(1);
+          return setHash('/abc123');
+        }).then(function() {
+          return expect(invokeCount.before).to.equal(2);
         });
       });
       test("A route can be mapped to a leaving function which will be invoked when leaving the route", function() {
@@ -682,26 +714,29 @@
           after: 0,
           reg: 0
         };
-        Router.map('/def456');
-        Router.map('/abc123').to(function() {
-          return invokeCount.reg++;
-        }).leaving(function() {
-          return invokeCount.after++;
-        });
-        Router.listen();
-        expect(invokeCount.reg).to.equal(0);
-        expect(invokeCount.after).to.equal(0);
-        return setHash('/abc123').then(function() {
+        return Promise.resolve().then(function() {
+          Router.map('/def456');
+          Router.map('/abc123').to(function() {
+            return invokeCount.reg++;
+          }).leaving(function() {
+            return invokeCount.after++;
+          });
+          return Router.listen();
+        }).delay().then(function() {
+          expect(invokeCount.reg).to.equal(0);
+          expect(invokeCount.after).to.equal(0);
+          return setHash('/abc123');
+        }).then(function() {
           expect(invokeCount.reg).to.equal(1);
           expect(invokeCount.after).to.equal(0);
-          return setHash('/def456').then(function() {
-            expect(invokeCount.reg).to.equal(1);
-            expect(invokeCount.after).to.equal(1);
-            return setHash('/abc123').then(function() {
-              expect(invokeCount.reg).to.equal(2);
-              return expect(invokeCount.after).to.equal(1);
-            });
-          });
+          return setHash('/def456');
+        }).then(function() {
+          expect(invokeCount.reg).to.equal(1);
+          expect(invokeCount.after).to.equal(1);
+          return setHash('/abc123');
+        }).then(function() {
+          expect(invokeCount.reg).to.equal(2);
+          return expect(invokeCount.after).to.equal(1);
         });
       });
       test("Route actions can return a promise which will be waited to be resolved before continuing", function() {
@@ -721,61 +756,65 @@
         initDelays = function() {
           delays.before = new Promise(function() {});
           delays.abc123 = new Promise(function() {});
-          return delays.after = new Promise(function() {});
+          delays.after = new Promise(function() {});
+          return null;
         };
-        Router.map('/abc123').entering(function() {
-          invokeCount.before++;
-          return delays.before;
-        }).to(function() {
-          invokeCount.abc123++;
-          return delays.abc123;
-        });
-        Router.map('/def456').to(function() {
-          return invokeCount.def456++;
-        }).leaving(function() {
-          invokeCount.after++;
-          return delays.after;
-        });
-        Router.listen();
-        initDelays();
-        return setHash('/abc123').then(function() {
+        return Promise.resolve().then(function() {
+          Router.map('/abc123').entering(function() {
+            invokeCount.before++;
+            return delays.before;
+          }).to(function() {
+            invokeCount.abc123++;
+            return delays.abc123;
+          });
+          Router.map('/def456').to(function() {
+            return invokeCount.def456++;
+          }).leaving(function() {
+            invokeCount.after++;
+            return delays.after;
+          });
+          Router.listen();
+          return initDelays();
+        }).delay().then(function() {
+          return setHash('/abc123');
+        }).then(function() {
           expect(invokeCount.before).to.equal(1);
           expect(invokeCount.abc123).to.equal(0);
           expect(invokeCount.def456).to.equal(0);
           expect(invokeCount.after).to.equal(0);
           delays.before._fulfill();
-          return delays.before.delay().then(function() {
-            expect(invokeCount.before).to.equal(1);
-            expect(invokeCount.abc123).to.equal(1);
-            expect(invokeCount.def456).to.equal(0);
-            expect(invokeCount.after).to.equal(0);
-            return setHash('/def456').then(function() {
-              expect(invokeCount.before).to.equal(1);
-              expect(invokeCount.abc123).to.equal(1);
-              expect(invokeCount.def456).to.equal(0);
-              expect(invokeCount.after).to.equal(0);
-              delays.abc123._fulfill();
-              return delays.abc123.delay().then(function() {
-                expect(invokeCount.before).to.equal(1);
-                expect(invokeCount.abc123).to.equal(1);
-                expect(invokeCount.def456).to.equal(1);
-                expect(invokeCount.after).to.equal(0);
-                return setHash('/abc123').then(function() {
-                  expect(invokeCount.before).to.equal(1);
-                  expect(invokeCount.abc123).to.equal(1);
-                  expect(invokeCount.def456).to.equal(1);
-                  expect(invokeCount.after).to.equal(1);
-                  delays.after._fulfill();
-                  return delays.after.delay().then(function() {
-                    expect(invokeCount.before).to.equal(2);
-                    expect(invokeCount.abc123).to.equal(2);
-                    expect(invokeCount.def456).to.equal(1);
-                    return expect(invokeCount.after).to.equal(1);
-                  });
-                });
-              });
-            });
-          });
+          return delays.before.delay();
+        }).then(function() {
+          expect(invokeCount.before).to.equal(1);
+          expect(invokeCount.abc123).to.equal(1);
+          expect(invokeCount.def456).to.equal(0);
+          expect(invokeCount.after).to.equal(0);
+          return setHash('/def456');
+        }).then(function() {
+          expect(invokeCount.before).to.equal(1);
+          expect(invokeCount.abc123).to.equal(1);
+          expect(invokeCount.def456).to.equal(0);
+          expect(invokeCount.after).to.equal(0);
+          delays.abc123._fulfill();
+          return delays.abc123.delay();
+        }).then(function() {
+          expect(invokeCount.before).to.equal(1);
+          expect(invokeCount.abc123).to.equal(1);
+          expect(invokeCount.def456).to.equal(1);
+          expect(invokeCount.after).to.equal(0);
+          return setHash('/abc123');
+        }).then(function() {
+          expect(invokeCount.before).to.equal(1);
+          expect(invokeCount.abc123).to.equal(1);
+          expect(invokeCount.def456).to.equal(1);
+          expect(invokeCount.after).to.equal(1);
+          delays.after._fulfill();
+          return delays.after.delay();
+        }).then(function() {
+          expect(invokeCount.before).to.equal(2);
+          expect(invokeCount.abc123).to.equal(2);
+          expect(invokeCount.def456).to.equal(1);
+          return expect(invokeCount.after).to.equal(1);
         });
       });
       test("A root route can be specified which will be defaulted to on Router.listen() if there isn't a matching route for the current hash", function() {
@@ -829,38 +868,39 @@
           fallback: 0
         };
         Router = Routing.Router();
-        Router.map('abc').to(function() {
-          return invokeCount.abc++;
-        });
-        Router.fallback(function() {
-          return invokeCount.fallback++;
-        });
-        Router.listen();
-        return Promise.delay().then(function() {
+        return Promise.resolve().then(function() {
+          Router.map('abc').to(function() {
+            return invokeCount.abc++;
+          });
+          Router.fallback(function() {
+            return invokeCount.fallback++;
+          });
+          return Router.listen();
+        }).delay().then(function() {
           expect(invokeCount.abc).to.equal(0);
           expect(invokeCount.fallback).to.equal(1);
           expect(getHash()).to.equal('');
-          return setHash('abc').then(function() {
-            expect(getHash()).to.equal('abc');
-            expect(invokeCount.abc).to.equal(1);
-            expect(invokeCount.fallback).to.equal(1);
-            return setHash('def').then(function() {
-              expect(getHash()).to.equal('def');
-              expect(invokeCount.abc).to.equal(1);
-              expect(invokeCount.fallback).to.equal(2);
-              return setHash('').then(function() {
-                expect(getHash()).to.equal('');
-                expect(invokeCount.abc).to.equal(1);
-                expect(invokeCount.fallback).to.equal(3);
-                Router.fallback(function() {
-                  return setHash('abc');
-                });
-                return setHash('aksjdfh').then(function() {
-                  return expect(getHash()).to.equal('abc');
-                });
-              });
-            });
+          return setHash('abc');
+        }).then(function() {
+          expect(getHash()).to.equal('abc');
+          expect(invokeCount.abc).to.equal(1);
+          expect(invokeCount.fallback).to.equal(1);
+          return setHash('def');
+        }).then(function() {
+          expect(getHash()).to.equal('def');
+          expect(invokeCount.abc).to.equal(1);
+          expect(invokeCount.fallback).to.equal(2);
+          return setHash('');
+        }).then(function() {
+          expect(getHash()).to.equal('');
+          expect(invokeCount.abc).to.equal(1);
+          expect(invokeCount.fallback).to.equal(3);
+          Router.fallback(function() {
+            return setHash('abc');
           });
+          return setHash('aksjdfh');
+        }).then(function() {
+          return expect(getHash()).to.equal('abc');
         });
       });
       test("A failed route transition will cause the router to go to the fallback route if exists", function() {
@@ -892,13 +932,12 @@
         });
       });
       test("A failed route transition will cause the router to go to the previous route if no fallback exists", function() {
-        var consoleError, invokeCount;
+        var Router, consoleError, invokeCount;
         invokeCount = 0;
         consoleError = console.error;
         console.error = chai.spy();
+        Router = Routing.Router();
         return Promise.delay().then(function() {
-          var Router;
-          Router = Routing.Router();
           Router.map('abc').to(function() {
             return invokeCount++;
           });
@@ -1090,20 +1129,21 @@
           return invokeCount[prop]++;
         };
         Router = Routing.Router();
-        Router.map('AAA').to(function() {
-          return incCount('AAA');
-        });
-        Router.map('BBB').to(function() {
-          return incCount('BBB');
-        });
-        Router.map('CCC').to(function() {
-          return incCount('CCC');
-        });
-        Router.map('DDD').to(function() {
-          return incCount('DDD');
-        });
-        Router.listen();
-        return Promise.delay().then(function() {
+        return Promise.resolve().then(function() {
+          Router.map('AAA').to(function() {
+            return incCount('AAA');
+          });
+          Router.map('BBB').to(function() {
+            return incCount('BBB');
+          });
+          Router.map('CCC').to(function() {
+            return incCount('CCC');
+          });
+          Router.map('DDD').to(function() {
+            return incCount('DDD');
+          });
+          return Router.listen();
+        }).delay().then(function() {
           Router.fallback(function() {
             return incCount('fallback');
           });
@@ -1112,63 +1152,62 @@
           expect(invokeCount.CCC).to.equal(void 0);
           expect(invokeCount.DDD).to.equal(void 0);
           expect(invokeCount.fallback).to.equal(void 0);
+          return Router.forward();
+        }).then(function() {
+          expect(invokeCount.fallback).to.equal(void 0);
+          return Router.back();
+        }).then(function() {
+          return expect(invokeCount.fallback).to.equal(void 0);
+        }).then(function() {
+          return setHash('AAA');
+        }).then(function() {
+          return setHash('BBB');
+        }).then(function() {
+          return setHash('CCC');
+        }).then(function() {
+          return setHash('DDD');
+        }).then(function() {
+          expect(invokeCount.AAA).to.equal(1);
+          expect(invokeCount.BBB).to.equal(1);
+          expect(invokeCount.CCC).to.equal(1);
+          expect(invokeCount.DDD).to.equal(1);
+          expect(invokeCount.fallback).to.equal(void 0);
+          return Router.back();
+        }).then(function() {
+          expect(invokeCount.CCC).to.equal(2);
+          return Router.back();
+        }).then(function() {
+          expect(invokeCount.BBB).to.equal(2);
           return Router.forward().then(function() {
-            expect(invokeCount.fallback).to.equal(void 0);
-            return Router.back().then(function() {
-              expect(invokeCount.fallback).to.equal(void 0);
-              return Promise.resolve().then(function() {
-                return setHash('AAA');
-              }).then(function() {
-                return setHash('BBB');
-              }).then(function() {
-                return setHash('CCC');
-              }).then(function() {
-                return setHash('DDD');
-              }).then(function() {
-                expect(invokeCount.AAA).to.equal(1);
-                expect(invokeCount.BBB).to.equal(1);
-                expect(invokeCount.CCC).to.equal(1);
-                expect(invokeCount.DDD).to.equal(1);
-                expect(invokeCount.fallback).to.equal(void 0);
-                return Router.back().then(function() {
-                  expect(invokeCount.CCC).to.equal(2);
-                  return Router.back().then(function() {
-                    expect(invokeCount.BBB).to.equal(2);
-                    return Router.forward().then(function() {
-                      return Router.forward().then(function() {
-                        expect(invokeCount.AAA).to.equal(1);
-                        expect(invokeCount.BBB).to.equal(2);
-                        expect(invokeCount.CCC).to.equal(3);
-                        expect(invokeCount.DDD).to.equal(2);
-                        return Router.back().then(function() {
-                          return Router.back().then(function() {
-                            expect(invokeCount.AAA).to.equal(1);
-                            expect(invokeCount.BBB).to.equal(3);
-                            expect(invokeCount.CCC).to.equal(4);
-                            expect(invokeCount.DDD).to.equal(2);
-                            return Router.back().then(function() {
-                              expect(invokeCount.AAA).to.equal(2);
-                              expect(invokeCount.BBB).to.equal(3);
-                              expect(invokeCount.CCC).to.equal(4);
-                              expect(invokeCount.DDD).to.equal(2);
-                              expect(getHash()).to.equal('AAA');
-                              return Router.back().then(function() {
-                                expect(invokeCount.AAA).to.equal(2);
-                                expect(invokeCount.BBB).to.equal(3);
-                                expect(invokeCount.CCC).to.equal(4);
-                                expect(invokeCount.DDD).to.equal(2);
-                                return expect(getHash()).to.equal('AAA');
-                              });
-                            });
-                          });
-                        });
-                      });
-                    });
-                  });
-                });
-              });
-            });
+            return Router.forward();
           });
+        }).then(function() {
+          expect(invokeCount.AAA).to.equal(1);
+          expect(invokeCount.BBB).to.equal(2);
+          expect(invokeCount.CCC).to.equal(3);
+          expect(invokeCount.DDD).to.equal(2);
+          return Router.back().then(function() {
+            return Router.back();
+          });
+        }).then(function() {
+          expect(invokeCount.AAA).to.equal(1);
+          expect(invokeCount.BBB).to.equal(3);
+          expect(invokeCount.CCC).to.equal(4);
+          expect(invokeCount.DDD).to.equal(2);
+          return Router.back();
+        }).then(function() {
+          expect(invokeCount.AAA).to.equal(2);
+          expect(invokeCount.BBB).to.equal(3);
+          expect(invokeCount.CCC).to.equal(4);
+          expect(invokeCount.DDD).to.equal(2);
+          expect(getHash()).to.equal('AAA');
+          return Router.back();
+        }).then(function() {
+          expect(invokeCount.AAA).to.equal(2);
+          expect(invokeCount.BBB).to.equal(3);
+          expect(invokeCount.CCC).to.equal(4);
+          expect(invokeCount.DDD).to.equal(2);
+          return expect(getHash()).to.equal('AAA');
         });
       });
       test("Router.refresh() can be used to create refresh the current route", function() {
@@ -1246,7 +1285,7 @@
           Router.fallback(function() {
             return invokeCount.fallback++;
           });
-          Router.map('/api/:version/:function/:username').to(function() {
+          Router.map('/api/:version/:function/:username?').to(function() {
             invokeCount.route++;
             return params = this.params;
           }).filters({
@@ -1257,44 +1296,43 @@
               return username && /^[^\d]+$/.test(username);
             }
           });
-          Router.listen();
-          return Promise.delay().then(function() {
+          return Promise.resolve(Router.listen()).delay().then(function() {
             expect(invokeCount.route).to.equal(0);
             expect(invokeCount.fallback).to.equal(1);
-            return setHash('/api/3/anything/daniel').then(function() {
-              expect(invokeCount.route).to.equal(1);
-              expect(invokeCount.fallback).to.equal(1);
-              expect(params).to.eql({
-                version: '3',
-                "function": 'anything',
-                username: 'daniel'
-              });
-              return setHash('/api/3/9/daniel').then(function() {
-                expect(invokeCount.route).to.equal(2);
-                expect(invokeCount.fallback).to.equal(1);
-                expect(params).to.eql({
-                  version: '3',
-                  "function": '9',
-                  username: 'daniel'
-                });
-                return setHash('/api/13/anything/daniel').then(function() {
-                  expect(invokeCount.route).to.equal(2);
-                  expect(invokeCount.fallback).to.equal(2);
-                  return setHash('/api/5/anything/dani3el').then(function() {
-                    expect(invokeCount.route).to.equal(2);
-                    expect(invokeCount.fallback).to.equal(3);
-                    return setHash('/api/5//kevin').then(function() {
-                      expect(invokeCount.route).to.equal(3);
-                      expect(invokeCount.fallback).to.equal(3);
-                      return expect(params).to.eql({
-                        version: '5',
-                        "function": '',
-                        username: 'kevin'
-                      });
-                    });
-                  });
-                });
-              });
+            return setHash('/api/3/anything/daniel');
+          }).then(function() {
+            expect(invokeCount.route).to.equal(1);
+            expect(invokeCount.fallback).to.equal(1);
+            expect(params).to.eql({
+              version: '3',
+              "function": 'anything',
+              username: 'daniel'
+            });
+            return setHash('/api/3/9/daniel');
+          }).then(function() {
+            expect(invokeCount.route).to.equal(2);
+            expect(invokeCount.fallback).to.equal(1);
+            expect(params).to.eql({
+              version: '3',
+              "function": '9',
+              username: 'daniel'
+            });
+            return setHash('/api/13/anything/daniel');
+          }).then(function() {
+            expect(invokeCount.route).to.equal(2);
+            expect(invokeCount.fallback).to.equal(2);
+            return setHash('/api/5/anything/dani3el');
+          }).then(function() {
+            expect(invokeCount.route).to.equal(2);
+            expect(invokeCount.fallback).to.equal(3);
+            return setHash('/api/5//kevin');
+          }).then(function() {
+            expect(invokeCount.route).to.equal(3);
+            expect(invokeCount.fallback).to.equal(3);
+            return expect(params).to.eql({
+              version: '5',
+              "function": '',
+              username: 'kevin'
             });
           });
         });

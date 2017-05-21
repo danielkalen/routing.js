@@ -15,26 +15,23 @@ do ()->
 			applicableCallbacks = changeCallbacks
 			
 			if path and basePaths.length
-				for basePath in basePaths
-					if path.indexOf(basePath) is 0
-						
-						applicableCallbacks = []
-						for callback in changeCallbacks
-							routerBasePath = callback.router._specialRoutes.basePath
-							applicableCallbacks.push(callback) if routerBasePath is basePath
-						
-						break
+				for basePath in basePaths when basePath.test(path)
 
-			callback(firstTime is true) for callback in applicableCallbacks
+					applicableCallbacks = []
+					for callback in changeCallbacks
+						routerBasePath = callback.router._basePath
+						applicableCallbacks.push(callback) if routerBasePath is basePath
+					
+					break
+
+			callback(path, firstTime is true) for callback in applicableCallbacks
 			return
 
 		@_onChange = (router, callback)->
 			callback.router = router
 			changeCallbacks.push(callback)
 
-			if listening
-				callback(true)
-			else
+			unless listening
 				listening = true
 				### istanbul ignore next ###
 				if window.onhashchange isnt undefined and (not document.documentMode or document.documentMode >= 8)
@@ -42,7 +39,8 @@ do ()->
 				else
 					setInterval dispatchChange, 100
 
-				dispatchChange(true)
+			callback(helpers.cleanPath(window.location.hash), true)
+
 
 		@_registerBasePath = (path)->
 			basePaths.push(path)

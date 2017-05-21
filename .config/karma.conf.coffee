@@ -13,12 +13,8 @@ module.exports = (config)-> config.set
 		'**/*.git'
 	]
 
-	preprocessors: 'dist/routing.debug.js': 'coverage'
-	
-	reporters: ['mocha', 'coverage']
-
-	mochaReporter: 
-		output: 'minimal'
+	preprocessors: 'dist/routing.debug.js': 'coverage' if process.env.converage
+	reporters: ['coverage'] if process.env.coverage
 
 	coverageReporter:
 		type: 'lcov'

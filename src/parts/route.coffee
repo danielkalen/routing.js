@@ -2,11 +2,9 @@ helpers = import './helpers'
 
 module.exports = class Route
 	constructor: (@path, @segments, @router)->
-		@originalPath = @path
 		@enterAction = @leaveAction = helpers.noop
 		@actions = []
-		@context = {@path, @segments, params:{}}
-		@_dynamicFilters = {}
+		@context = {@segments, path:@path.string, params:{}}
 
 
 	entering: (fn)->
@@ -43,12 +41,12 @@ module.exports = class Route
 	_leave: (newRoute, newPath)->
 		@_invokeAction(@leaveAction, newPath, newRoute)
 
-	_resolveParams: (path)-> if @segments.hasDynamic
-		path = @router._removeBase(path)
+	_resolveParams: (path)-> if @segments.dynamic
+		path = helpers.removeBase(path, @router._basePath)
 		segments = path.split('/')
 		
-		for dynamicIndex,dynamicSegment of @segments.dynamic
-			@context.params[dynamicSegment] = segments[dynamicIndex] or ''
+		for dynamicIndex,segmentName of @segments.dynamic when dynamicIndex isnt 'length'
+			@context.params[segmentName] = segments[dynamicIndex] or ''
 
 		return
 

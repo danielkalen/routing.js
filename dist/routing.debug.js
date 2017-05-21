@@ -24,7 +24,6 @@
             }
             this.listening = false;
             this.routes = [];
-            this._specialRoutes = {};
             this._routesMap = {};
             this._cache = {};
             this._history = [];
@@ -41,83 +40,15 @@
             this._pendingRoute = Promise.resolve();
           }
 
-          Router.prototype._applyBase = function(path) {
-            if (path[0] === '/') {
-              path = path.slice(1);
-            }
-            if (this._specialRoutes.basePath) {
-              if (path.indexOf(this._specialRoutes.basePath) !== 0) {
-                return this._specialRoutes.basePath + "/" + path;
-              }
-            }
-            return path;
-          };
-
-          Router.prototype._removeBase = function(path) {
-            if (path[0] === '/') {
-              path = path.slice(1);
-            }
-            if (this._specialRoutes.basePath) {
-              if (path.indexOf(this._specialRoutes.basePath) === 0) {
-                return path.slice(this._specialRoutes.basePath.length + 1);
-              }
-            }
-            return path;
-          };
-
-          Router.prototype._matchPath = function(path, firstTime) {
-            var dynamicSegment, index, j, k, len, len1, matchingRoute, matchingSoFar, ref, route, segment, segments, segmentsStrigified;
-            if (path === FALLBACK_ROUTE) {
-              return this._specialRoutes.fallback;
-            }
-            path = helpers.cleanPath(path);
-            segments = helpers.parsePath(path, this._specialRoutes.basePath);
-            segmentsStrigified = segments.join('/');
-            matchingRoute = this._routesMap[segmentsStrigified] || this._cache[segmentsStrigified];
-            if (this._specialRoutes.basePath && path.indexOf(this._specialRoutes.basePath) !== 0) {
-              return;
-            }
-            if (!matchingRoute) {
-              ref = this.routes;
-              for (j = 0, len = ref.length; j < len; j++) {
-                route = ref[j];
-                matchingSoFar = true;
-                for (index = k = 0, len1 = segments.length; k < len1; index = ++k) {
-                  segment = segments[index];
-                  if (segment !== route.segments[index]) {
-                    dynamicSegment = route.segments.dynamic[index];
-                    if (matchingSoFar = dynamicSegment != null) {
-                      if (route._dynamicFilters[dynamicSegment]) {
-                        matchingSoFar = route._dynamicFilters[dynamicSegment](segment);
-                      }
-                    }
-                  }
-                  if (!matchingSoFar) {
-                    break;
-                  }
-                }
-                if (matchingSoFar) {
-                  matchingRoute = route;
-                  break;
-                }
-              }
-            }
-            if (matchingRoute) {
-              this._cache[segmentsStrigified] = matchingRoute;
-              matchingRoute.path = path;
-            } else if (firstTime && this._specialRoutes.rootPath) {
-              matchingRoute = this._matchPath(this._specialRoutes.rootPath);
-            }
-            return matchingRoute || this._specialRoutes.fallback;
-          };
-
           Router.prototype._addRoute = function(route) {
             this.routes.push(route);
             this.routes.sort(function(a, b) {
-              var segmentsDiff;
+              var aLength, bLength, ref, ref1, segmentsDiff;
               segmentsDiff = b.segments.length - a.segments.length;
               if (!segmentsDiff) {
-                segmentsDiff = b.segments.dynamic.length - a.segments.dynamic.length;
+                aLength = ((ref = a.segments.dynamic) != null ? ref.length : void 0) || 0;
+                bLength = ((ref1 = b.segments.dynamic) != null ? ref1.length : void 0) || 0;
+                segmentsDiff = bLength - aLength;
               }
               return segmentsDiff;
             });
@@ -148,82 +79,129 @@
             }
           };
 
-          Router.prototype.listen = function() {
-            this.listening = true;
-            Routing._onChange(this, this._listenCallback = (function(_this) {
-              return function(firstTime) {
-                return _this.go(window.location.hash, false, firstTime, null, true);
-              };
-            })(this));
-            return this;
-          };
-
-          Router.prototype.refresh = function() {
-            this.prev.path = this.current.path;
-            this.prev.route = this.current.route;
-            return this.go(this.current.path, true);
-          };
-
-          Router.prototype.go = function(path, forceRefresh, firstTime, navDirection, fromHashChange) {
-            var matchingRoute;
-            if (typeof path !== 'string') {
-              return this._pendingRoute;
-            } else {
-              if (!fromHashChange) {
-                path = this._applyBase(path);
-              }
-              matchingRoute = this._matchPath(path, firstTime);
-              path = (matchingRoute != null ? matchingRoute.path : void 0) || path;
-              if (matchingRoute && (path !== this.current.path || forceRefresh)) {
-                (function(_this) {
-                  return (function() {
-                    if (!(forceRefresh || path === _this.current.path || path === FALLBACK_ROUTE)) {
-                      window.location.hash = path;
-                      if (_this.current.path && navDirection !== 'back') {
-                        _this._history.push(_this.current.path);
+          Router.prototype._matchPath = function(path, firstTime) {
+            var dynamicSegment, index, j, k, len, len1, matchingRoute, matchingSoFar, ref, ref1, result, route, segment, segments;
+            matchingRoute = this._routesMap[path] || this._cache[path];
+            result = {};
+            if (!matchingRoute) {
+              segments = path.split('/');
+              ref = this.routes;
+              for (j = 0, len = ref.length; j < len; j++) {
+                route = ref[j];
+                if (route.path.test(path)) {
+                  matchingRoute = route;
+                  if (!route.segments.dynamic || !route._dynamicFilters) {
+                    break;
+                  } else {
+                    matchingSoFar = true;
+                    for (index = k = 0, len1 = segments.length; k < len1; index = ++k) {
+                      segment = segments[index];
+                      if (segment !== route.segments[index]) {
+                        dynamicSegment = (ref1 = route.segments.dynamic) != null ? ref1[index] : void 0;
+                        if (matchingSoFar = dynamicSegment != null) {
+                          if (route._dynamicFilters[dynamicSegment]) {
+                            matchingSoFar = route._dynamicFilters[dynamicSegment](segment);
+                          }
+                        }
                       }
-                      if (!navDirection) {
-                        _this._future.length = 0;
+                      if (!matchingSoFar) {
+                        break;
                       }
-                      _this.prev.route = _this.current.route;
-                      _this.prev.path = _this.current.path;
-                      _this.current.route = matchingRoute;
-                      _this.current.path = path;
                     }
-                    _this._pendingRoute = _this._pendingRoute.then(function() {
-                      return new Promise(function(resolve, reject) {
-                        _this._pendingPath = path;
-                        setTimeout(function() {
-                          return reject(new Error("TimeoutError: '" + path + "' failed to load within " + _this.timeout + "ms (Router #" + _this.ID + ")"));
-                        }, _this.timeout);
-                        return Promise.resolve().then(_this._globalBefore).then(function() {
-                          var ref;
-                          return (ref = _this.prev.route) != null ? ref._leave(_this.current.route, _this.current.path) : void 0;
-                        }).then(function() {
-                          return matchingRoute._run(path, _this.prev.route, _this.prev.path);
-                        }).then(_this._globalAfter).then(resolve)["catch"](reject);
-                      });
-                    });
-                    return _this._pendingRoute["catch"](function(err) {
-                      helpers.logError(err);
-                      _this._pendingRoute = Promise.resolve();
-                      return _this.go(_this._specialRoutes.fallback ? FALLBACK_ROUTE : _this.prev.path);
-                    });
-                  });
-                })(this)();
+                    if (!matchingSoFar) {
+                      matchingRoute = false;
+                      continue;
+                    }
+                    break;
+                  }
+                }
               }
-              return this._pendingRoute;
+            }
+            if (matchingRoute) {
+              this._cache[path] = matchingRoute;
+              result.path = path;
+            } else if (firstTime && this._rootPath) {
+              return this._matchPath(this._rootPath);
+            }
+            result.route = matchingRoute || this._fallbackRoute;
+            return result;
+          };
+
+          Router.prototype._go = function(route, path, storeChange, navDirection) {
+            if (route) {
+              path = helpers.applyBase(path, this._basePath);
+              if (storeChange) {
+                window.location.hash = path;
+                if (this.current.route && navDirection !== 'back') {
+                  this._history.push(this.current);
+                }
+                if (!navDirection) {
+                  this._future.length = 0;
+                }
+                this.prev = helpers.copyObject(this.current);
+                this.current = {
+                  route: route,
+                  path: path
+                };
+              }
+              this._pendingRoute = this._pendingRoute.then((function(_this) {
+                return function() {
+                  return new Promise(function(resolve, reject) {
+                    setTimeout(function() {
+                      return reject(new Error("TimeoutError: '" + path + "' failed to load within " + _this.timeout + "ms (Router #" + _this.ID + ")"));
+                    }, _this.timeout);
+                    return Promise.resolve().then(_this._globalBefore).then(function() {
+                      var ref;
+                      return (ref = _this.prev.route) != null ? ref._leave(_this.current.route, _this.current.path) : void 0;
+                    }).then(function() {
+                      return route._run(path, _this.prev.route, _this.prev.path);
+                    }).then(_this._globalAfter).then(resolve)["catch"](reject);
+                  });
+                };
+              })(this));
+              return this._pendingRoute["catch"]((function(_this) {
+                return function(err) {
+                  helpers.logError(err);
+                  _this._pendingRoute = Promise.resolve();
+                  if (_this._fallbackRoute) {
+                    return _this._go(_this._fallbackRoute, _this.current.path);
+                  } else {
+                    return _this._go(_this.prev.route, _this.prev.path, true, 'back');
+                  }
+                };
+              })(this));
             }
           };
 
+          Router.prototype.go = function(pathGiven, firstTime, navDirection) {
+            var matchingRoute, path, result;
+            if (typeof pathGiven === 'string') {
+              path = helpers.cleanPath(pathGiven);
+              path = helpers.removeBase(path, this._basePath);
+              if (path === FALLBACK_ROUTE) {
+                matchingRoute = this._fallbackRoute;
+              } else {
+                result = this._matchPath(path, firstTime);
+                if (result && result.route) {
+                  matchingRoute = result.route;
+                  path = result.path || path;
+                }
+              }
+              if (path !== this.current.path) {
+                this._go(matchingRoute, path, true);
+              }
+            }
+            return this._pendingRoute;
+          };
+
           Router.prototype.map = function(path) {
-            var matchingRoute, segments, segmentsStrigified;
+            var matchingRoute, pathRegex, segments;
             path = helpers.cleanPath(path);
             segments = helpers.parsePath(path);
-            segmentsStrigified = segments.join('/');
-            matchingRoute = this._routesMap[segmentsStrigified];
+            matchingRoute = this._routesMap[path];
             if (!matchingRoute) {
-              matchingRoute = this._routesMap[segmentsStrigified] = new Route(path, segments, this);
+              pathRegex = helpers.segmentsToRegex(segments);
+              matchingRoute = this._routesMap[path] = new Route(pathRegex, segments, this);
               this._addRoute(matchingRoute);
             }
             return matchingRoute;
@@ -240,39 +218,68 @@
           };
 
           Router.prototype.base = function(path) {
-            Routing._registerBasePath(this._specialRoutes.basePath = helpers.cleanPath(path));
+            Routing._registerBasePath(this._basePath = helpers.pathToRegex(helpers.cleanPath(path)));
             return this;
           };
 
           Router.prototype.root = function(path) {
-            this._specialRoutes.rootPath = helpers.cleanPath(path);
+            this._rootPath = helpers.cleanPath(path);
             return this;
           };
 
           Router.prototype.fallback = function(fn) {
-            this._specialRoutes.fallback = new Route(FALLBACK_ROUTE, [], this);
-            this._specialRoutes.fallback.to(fn);
+            this._fallbackRoute = new Route(FALLBACK_ROUTE, [], this);
+            this._fallbackRoute.to(fn);
             return this;
           };
 
           Router.prototype.back = function() {
-            if (this.current.path) {
-              this._future.unshift(this.current.path);
+            var prev;
+            if (this.current.route) {
+              this._future.unshift(this.current);
             }
-            return this.go(this._history.pop(), false, false, 'back');
+            prev = this._history.pop();
+            if (prev) {
+              return this._go(prev.route, prev.path, true, 'back');
+            } else {
+              return Promise.resolve();
+            }
           };
 
           Router.prototype.forward = function() {
-            return this.go(this._future.shift(), false, false, 'forward');
+            var next;
+            next = this._future.shift();
+            if (next) {
+              return this._go(next.route, next.path, true, 'forward');
+            } else {
+              return Promise.resolve();
+            }
           };
 
           Router.prototype.kill = function() {
             this._routesMap = {};
-            this._specialRoutes = {};
             this._cache = {};
             this.routes.length = this._history.length = this._future.length = 0;
             this._globalBefore = this._globalAfter = helpers.noop;
             this.current.route = this.current.path = this.prev.route = this.prev.path = null;
+          };
+
+          Router.prototype.listen = function() {
+            this.listening = true;
+            Routing._onChange(this, this._listenCallback = (function(_this) {
+              return function(path, firstTime) {
+                if (!(_this._basePath && !_this._basePath.test(path))) {
+                  return _this.go(path, firstTime, null);
+                }
+              };
+            })(this));
+            return this;
+          };
+
+          Router.prototype.refresh = function() {
+            this.prev.path = this.current.path;
+            this.prev.route = this.current.route;
+            return this._go(this.current.route, this.current.path);
           };
 
           return Router;
@@ -286,6 +293,15 @@
         module.exports = helpers = {};
         helpers.noop = function() {
           return Promise.resolve();
+        };
+        helpers.copyObject = function(source) {
+          var key, target, value;
+          target = {};
+          for (key in source) {
+            value = source[key];
+            target[key] = value;
+          }
+          return target;
         };
         helpers.removeItem = function(target, item) {
           var itemIndex;
@@ -307,6 +323,21 @@
             console.log(err);
           }
         };
+        helpers.applyBase = function(path, base) {
+          if (path[0] === '/') {
+            path = path.slice(1);
+          }
+          if (base && !base.test(path)) {
+            return base.string + "/" + path;
+          }
+          return path;
+        };
+        helpers.removeBase = function(path, base) {
+          if (base && base.test(path)) {
+            return path.slice(base.length + 1);
+          }
+          return path;
+        };
         helpers.cleanPath = function(path) {
           if (path[0] === '#') {
             path = path.slice(1);
@@ -322,26 +353,35 @@
           return path;
         };
         helpers.parsePath = function(path, basePath) {
-          var addSegment, char, currentSegment, dynamic, i, length, segments;
-          dynamic = false;
+          var addSegment, char, currentSegment, dynamic, i, length, optional, segments;
+          dynamic = optional = false;
           currentSegment = '';
           segments = [];
-          segments.dynamic = {};
-          if (basePath && path.indexOf(basePath) === 0) {
+          if (basePath && basePath.test(path)) {
             path = path.slice(basePath.length + 1);
           }
           length = path.length;
           i = -1;
           addSegment = function() {
+            var index;
             segments.push(currentSegment);
+            index = segments.length - 1;
             if (dynamic) {
-              segments.dynamic[segments.length - 1] = currentSegment;
+              if (segments.optional == null) {
+                segments.optional = {};
+              }
+              if (segments.dynamic == null) {
+                segments.dynamic = {
+                  length: 0
+                };
+              }
+              segments.dynamic[index] = currentSegment;
             }
-            if (dynamic) {
-              segments.hasDynamic = true;
+            if (optional) {
+              segments.optional[index] = currentSegment;
             }
             currentSegment = '';
-            return dynamic = false;
+            return dynamic = optional = false;
           };
           while (++i !== length) {
             switch (char = path[i]) {
@@ -351,12 +391,45 @@
               case ':':
                 dynamic = true;
                 break;
+              case '?':
+                optional = true;
+                break;
               default:
                 currentSegment += char;
             }
           }
           addSegment();
           return segments;
+        };
+        helpers.pathToRegex = function(pathOrig) {
+          var path, regex;
+          path = pathOrig.replace(/\//g, '\\/');
+          regex = new RegExp("^" + pathOrig);
+          regex.string = pathOrig;
+          regex.length = pathOrig.length;
+          return regex;
+        };
+        helpers.segmentsToRegex = function(segments) {
+          var index, j, len, path, ref, segment;
+          path = '';
+          for (index = j = 0, len = segments.length; j < len; index = ++j) {
+            segment = segments[index];
+            if ((ref = segments.dynamic) != null ? ref[index] : void 0) {
+              segment = '.+?';
+              if (path) {
+                segment = "/" + segment;
+              }
+              if (segments.optional[index]) {
+                segment = "(?:" + segment + ")?";
+              }
+            } else {
+              if (path) {
+                path += '/';
+              }
+            }
+            path += segment;
+          }
+          return helpers.pathToRegex(path);
         };
         return module.exports;
       };
@@ -369,15 +442,13 @@
             this.path = path1;
             this.segments = segments1;
             this.router = router1;
-            this.originalPath = this.path;
             this.enterAction = this.leaveAction = helpers.noop;
             this.actions = [];
             this.context = {
-              path: this.path,
               segments: this.segments,
+              path: this.path.string,
               params: {}
             };
-            this._dynamicFilters = {};
           }
 
           Route.prototype.entering = function(fn) {
@@ -430,14 +501,16 @@
           };
 
           Route.prototype._resolveParams = function(path) {
-            var dynamicIndex, dynamicSegment, ref, segments;
-            if (this.segments.hasDynamic) {
-              path = this.router._removeBase(path);
+            var dynamicIndex, ref, segmentName, segments;
+            if (this.segments.dynamic) {
+              path = helpers.removeBase(path, this.router._basePath);
               segments = path.split('/');
               ref = this.segments.dynamic;
               for (dynamicIndex in ref) {
-                dynamicSegment = ref[dynamicIndex];
-                this.context.params[dynamicSegment] = segments[dynamicIndex] || '';
+                segmentName = ref[dynamicIndex];
+                if (dynamicIndex !== 'length') {
+                  this.context.params[segmentName] = segments[dynamicIndex] || '';
+                }
               }
             }
           };
@@ -480,30 +553,29 @@
           if (path && basePaths.length) {
             for (j = 0, len = basePaths.length; j < len; j++) {
               basePath = basePaths[j];
-              if (path.indexOf(basePath) === 0) {
-                applicableCallbacks = [];
-                for (k = 0, len1 = changeCallbacks.length; k < len1; k++) {
-                  callback = changeCallbacks[k];
-                  routerBasePath = callback.router._specialRoutes.basePath;
-                  if (routerBasePath === basePath) {
-                    applicableCallbacks.push(callback);
-                  }
-                }
-                break;
+              if (!(basePath.test(path))) {
+                continue;
               }
+              applicableCallbacks = [];
+              for (k = 0, len1 = changeCallbacks.length; k < len1; k++) {
+                callback = changeCallbacks[k];
+                routerBasePath = callback.router._basePath;
+                if (routerBasePath === basePath) {
+                  applicableCallbacks.push(callback);
+                }
+              }
+              break;
             }
           }
           for (n = 0, len2 = applicableCallbacks.length; n < len2; n++) {
             callback = applicableCallbacks[n];
-            callback(firstTime === true);
+            callback(path, firstTime === true);
           }
         };
         this._onChange = function(router, callback) {
           callback.router = router;
           changeCallbacks.push(callback);
-          if (listening) {
-            return callback(true);
-          } else {
+          if (!listening) {
             listening = true;
 
             /* istanbul ignore next */
@@ -512,8 +584,8 @@
             } else {
               setInterval(dispatchChange, 100);
             }
-            return dispatchChange(true);
           }
+          return callback(helpers.cleanPath(window.location.hash), true);
         };
         this._registerBasePath = function(path) {
           return basePaths.push(path);
