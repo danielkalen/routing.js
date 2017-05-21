@@ -1,10 +1,12 @@
+LIB_FILE = if process.env.minified then 'dist/routing.js' else 'dist/routing.debug.js'
+
 module.exports = (config)-> config.set
 	basePath: '../'
 	client: captureConsole: true
 	browserConsoleLogOptions: level:'log', terminal:true
 	frameworks: ['mocha', 'chai']
 	files: [
-		'dist/routing.debug.js'
+		LIB_FILE
 		'node_modules/bluebird/js/browser/bluebird.js'
 		'node_modules/jquery/dist/jquery.min.js'
 		'test/test.js'
@@ -13,7 +15,7 @@ module.exports = (config)-> config.set
 		'**/*.git'
 	]
 
-	preprocessors: 'dist/routing.debug.js': 'coverage' if process.env.converage
+	preprocessors: {"#{LIB_FILE}":'coverage'} if process.env.converage
 	reporters: ['coverage'] if process.env.coverage
 
 	coverageReporter:
