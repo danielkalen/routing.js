@@ -30,6 +30,7 @@ module.exports = class Router
 
 		return route
 
+
 	_removeRoute: (route)->
 		cacheKeys = Object.keys(@_cache)
 		mapKeys = Object.keys(@_routesMap)
@@ -80,6 +81,11 @@ module.exports = class Router
 		path = helpers.applyBase(path, @_basePath)
 		if storeChange
 			window.location.hash = path
+			
+			if navDirection is 'redirect'
+				@current = @prev
+				@_history.pop()
+			
 			@_history.push(@current) if @current.route and navDirection isnt 'back'
 			@_future.length = 0 if not navDirection
 			
@@ -113,14 +119,15 @@ module.exports = class Router
 
 
 
-	go: (pathGiven)->
+	go: (pathGiven, isRedirect)->
 		if typeof pathGiven is 'string'
 			path = helpers.cleanPath(pathGiven)
 			path = helpers.removeBase(path, @_basePath)
 			matchingRoute = @_matchPath(path)
 			matchingRoute = @_fallbackRoute if not matchingRoute
 
-			@_go(matchingRoute, path, true) unless path is @current.path
+			if matchingRoute and path isnt @current.path
+				@_go(matchingRoute, path, true, isRedirect)
 		
 		return @_pendingRoute
 

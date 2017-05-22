@@ -6,3 +6,7 @@ module.exports = class Context
 	
 	remove: ()->
 		@route.remove()
+	
+	redirect: (path)->
+		@route.router.go(path, 'redirect')
+		return Promise.resolve()

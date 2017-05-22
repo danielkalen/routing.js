@@ -118,6 +118,10 @@
             path = helpers.applyBase(path, this._basePath);
             if (storeChange) {
               window.location.hash = path;
+              if (navDirection === 'redirect') {
+                this.current = this.prev;
+                this._history.pop();
+              }
               if (this.current.route && navDirection !== 'back') {
                 this._history.push(this.current);
               }
@@ -158,7 +162,7 @@
             })(this));
           };
 
-          Router.prototype.go = function(pathGiven) {
+          Router.prototype.go = function(pathGiven, isRedirect) {
             var matchingRoute, path;
             if (typeof pathGiven === 'string') {
               path = helpers.cleanPath(pathGiven);
@@ -167,8 +171,8 @@
               if (!matchingRoute) {
                 matchingRoute = this._fallbackRoute;
               }
-              if (path !== this.current.path) {
-                this._go(matchingRoute, path, true);
+              if (matchingRoute && path !== this.current.path) {
+                this._go(matchingRoute, path, true, isRedirect);
               }
             }
             return this._pendingRoute;
@@ -424,9 +428,9 @@
             this.path = path1;
             this.segments = segments1;
             this.router = router1;
+            this.context = new Context(this);
             this.enterAction = this.leaveAction = helpers.noop;
             this.actions = [];
-            this.context = new Context(this);
           }
 
           Route.prototype.entering = function(fn) {
@@ -525,6 +529,11 @@
             return this.route.remove();
           };
 
+          Context.prototype.redirect = function(path) {
+            this.route.router.go(path, 'redirect');
+            return Promise.resolve();
+          };
+
           return Context;
 
         })();
@@ -576,6 +585,9 @@
           });
           for (n = 0, len2 = matchingRoutes.length; n < len2; n++) {
             route = matchingRoutes[n];
+            if (window.yes) {
+              console.log(route.path.string, route.router.current.path);
+            }
             if (route.router.current.path !== path) {
               route.router._go(route, path, true);
             }

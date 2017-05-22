@@ -3,9 +3,9 @@ helpers = import './helpers'
 
 module.exports = class Route
 	constructor: (@path, @segments, @router)->
+		@context = new Context(@)
 		@enterAction = @leaveAction = helpers.noop
 		@actions = []
-		@context = new Context(@)
 
 
 	entering: (fn)->

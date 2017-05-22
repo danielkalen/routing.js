@@ -1072,7 +1072,7 @@ suite "Routing.JS", ()->
 				setHash('abc')
 
 
-	test "a route can be removed by calling its .remove() method or by invoking this.remove() from inside the route", ()->
+	test.only "a route can be removed by calling its .remove() method or by invoking this.remove() from inside the route", ()->
 		invokeCount = {abc:0, def:0}
 		Router = Routing.Router()
 		abcRoute = Router.map('abc').to ()-> invokeCount.abc++
@@ -1104,8 +1104,20 @@ suite "Routing.JS", ()->
 				expect(invokeCount.abc).to.equal 2
 				expect(invokeCount.def).to.equal 2
 				expect(getHash()).to.equal 'abc'
-				# abcRoute.remove()
-				# setHash('def').then ()-> setHash('abc')
+				defRoute.to ()-> @remove()
+				window.yes = 1
+				setHash('ghi').then ()-> setHash('def')
+
+			.then ()->
+				expect(invokeCount.abc).to.equal 2
+				expect(invokeCount.def).to.equal 3
+				expect(getHash()).to.equal 'def'
+				setHash('abc').then ()-> setHash('def')
+
+			.then ()->
+				expect(invokeCount.abc).to.equal 2
+				expect(invokeCount.def).to.equal 3
+				expect(getHash()).to.equal 'def'
 
 
 	test "a router's .go() method can only accept strings", ()->
