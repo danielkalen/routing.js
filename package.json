@@ -16,6 +16,7 @@
     "test:electron": "karma start --single-run --browsers Electron .config/karma.conf.coffee",
     "test:chrome": "karma start --single-run --browsers Chrome .config/karma.conf.coffee",
     "test:safari": "karma start --single-run --browsers Safari .config/karma.conf.coffee",
+    "test:firefox": "karma start --single-run --browsers Firefox .config/karma.conf.coffee",
     "test:sauce": "coffee .config/sauce-launch.coffee && npm run test-serve",
     "test-serve": "http-server -p 9201 --cors ./",
     "sauce-connect": "sc -u routingjs -k 9321bba9-2293-4e66-8fb5-06e255fbaa51",
@@ -32,7 +33,8 @@
     "watch:test": "simplywatch -g 'test/test.coffee' -x 'npm run compile:test -s'",
     "coverage": "npm run coverage:run; npm run coverage:badge",
     "coverage:run": "coverage=true npm run test:electron",
-    "coverage:badge": "badge-gen -d ./.config/badges/coverage"
+    "coverage:badge": "badge-gen -d ./.config/badges/coverage",
+    "coverage:show": "open coverage/lcov-report/index.html"
   },
   "repository": {
     "type": "git",

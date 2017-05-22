@@ -2,6 +2,9 @@ module.exports = helpers = {}
 
 helpers.noop = ()-> Promise.resolve()
 
+helpers.currentPath = ()->
+	helpers.cleanPath(window.location.hash)
+
 helpers.copyObject = (source)->
 	target = {}
 	target[key] = value for key,value of source
@@ -9,7 +12,7 @@ helpers.copyObject = (source)->
 
 helpers.removeItem = (target, item)->
 	itemIndex = target.indexOf(item)
-	target.splice(itemIndex, 1)  if itemIndex isnt -1
+	target.splice(itemIndex, 1) # if itemIndex isnt -1
 	return target
 
 ### istanbul ignore next ###
@@ -23,8 +26,6 @@ helpers.logError = (err)->
 
 
 helpers.applyBase = (path, base)->
-	path = path.slice(1) if path[0] is '/'
-	
 	if base and not base.test(path)
 		return "#{base.string}/#{path}"
 
@@ -47,11 +48,10 @@ helpers.cleanPath = (path)->
 	return path
 
 
-helpers.parsePath = (path, basePath)->
+helpers.parsePath = (path)->
 	dynamic = optional = false
 	currentSegment = ''
 	segments = []
-	path = path.slice(basePath.length+1) if basePath and basePath.test(path)
 	length = path.length
 	i = -1
 
@@ -92,7 +92,8 @@ helpers.segmentsToRegex = (segments)->
 	path = ''
 	for segment,index in segments
 		if segments.dynamic?[index]
-			segment = '.+?'
+			segment = '[^\/]+'
+			segment += '$' if segments.length is 1
 			segment = "/#{segment}" if path
 			segment = "(?:#{segment})?" if segments.optional[index]
 		else

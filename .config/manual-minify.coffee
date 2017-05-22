@@ -1,9 +1,9 @@
 fs = require 'fs'
 replacements = [
 	[/_fallbackRoute/g, '_F']
-	[/_rootPath/g, '_rp']
 	[/_basePath/g, '_bp']
 	[/_routesMap/g, '_r']
+	[/_priority/g, '_p']
 	[/_cache/g, '_c']
 	[/_history/g, '_h']
 	[/_future/g, '_f']
@@ -12,7 +12,6 @@ replacements = [
 	[/_pendingRoute/g, '_P']
 	[/_matchPath/g, '_M']
 	[/_addRoute/g, '_A']
-	[/_listenCallback/g, '_lC']
 	[/_onChange/g, '_oC']
 	[/_registerBasePath/g, '_reB']
 	[/_run/g, '_R']

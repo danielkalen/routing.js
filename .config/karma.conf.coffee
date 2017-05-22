@@ -15,8 +15,8 @@ module.exports = (config)-> config.set
 		'**/*.git'
 	]
 
-	preprocessors: {"#{LIB_FILE}":'coverage'} if process.env.converage
-	reporters: ['coverage'] if process.env.coverage
+	preprocessors: {"#{LIB_FILE}":'coverage'} if process.env.coverage
+	reporters: ['progress', 'coverage'] if process.env.coverage
 
 	coverageReporter:
 		type: 'lcov'

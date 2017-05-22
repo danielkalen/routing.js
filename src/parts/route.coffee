@@ -1,10 +1,11 @@
+Context = import './context'
 helpers = import './helpers'
 
 module.exports = class Route
 	constructor: (@path, @segments, @router)->
 		@enterAction = @leaveAction = helpers.noop
 		@actions = []
-		@context = {@segments, path:@path.string, params:{}}
+		@context = new Context(@)
 
 
 	entering: (fn)->

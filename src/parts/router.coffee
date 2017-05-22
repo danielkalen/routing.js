@@ -1,20 +1,19 @@
 Route = import './route'
 helpers = import './helpers'
-FALLBACK_ROUTE = '*FALLBACK*'
 
 module.exports = class Router
 	constructor: (@timeout, @ID)->
 		@timeout = 2500 if isNaN(@timeout)
 		@listening = false
 		@routes = []
+		@_priority = 1
 		@_routesMap = {}
 		@_cache = {}
 		@_history = []
 		@_future = []
 		@_globalBefore = @_globalAfter = helpers.noop
-		@current = {route:null, path:null}
-		@prev = {route:null, path:null}
 		@_pendingRoute = Promise.resolve()
+		@current = @prev = {route:null, path:null}
 
 
 
@@ -31,28 +30,22 @@ module.exports = class Router
 
 		return route
 
-	_removeRoute: (route)-> if route
+	_removeRoute: (route)->
 		cacheKeys = Object.keys(@_cache)
 		mapKeys = Object.keys(@_routesMap)
-		routeIndex = @routes.indexOf(route)
-		
-		if routeIndex isnt -1
-			@routes.splice(routeIndex, 1)
-
 		matchingCacheKey = cacheKeys.filter((key)=> @_cache[key] is route)[0]
 		matchingMapKey = cacheKeys.filter((key)=> @_routesMap[key] is route)[0]
+
+		helpers.removeItem(@routes, route)
 		delete @_cache[matchingCacheKey]
 		delete @_routesMap[matchingMapKey]
 
 
 
-	_matchPath: (path, firstTime)->
+	_matchPath: (path)->
 		matchingRoute = @_routesMap[path] or @_cache[path]
-		result = {}
 
-		if not matchingRoute
-			segments = path.split('/')
-			
+		if not matchingRoute			
 			for route in @routes
 				if route.path.test(path)
 					matchingRoute = route
@@ -61,10 +54,11 @@ module.exports = class Router
 						break
 					else
 						matchingSoFar = true
+						segments = path.split('/') if not segments
 						
 						for segment,index in segments
 							if segment isnt route.segments[index]
-								dynamicSegment = route.segments.dynamic?[index]
+								dynamicSegment = route.segments.dynamic[index]
 								
 								if matchingSoFar=dynamicSegment?
 									if route._dynamicFilters[dynamicSegment]
@@ -77,18 +71,12 @@ module.exports = class Router
 							continue
 						break
 
-		if matchingRoute
-			@_cache[path] = matchingRoute
-			result.path = path
 		
-		else if firstTime and @_rootPath
-			return @_matchPath(@_rootPath)
-		
-		result.route = matchingRoute or @_fallbackRoute
-		return result
+		return @_cache[path] = matchingRoute if matchingRoute
 
 
-	_go: (route, path, storeChange, navDirection)-> if route
+
+	_go: (route, path, storeChange, navDirection)->
 		path = helpers.applyBase(path, @_basePath)
 		if storeChange
 			window.location.hash = path
@@ -125,21 +113,14 @@ module.exports = class Router
 
 
 
-	go: (pathGiven, firstTime, navDirection)->
+	go: (pathGiven)->
 		if typeof pathGiven is 'string'
 			path = helpers.cleanPath(pathGiven)
 			path = helpers.removeBase(path, @_basePath)
-			
-			if path is FALLBACK_ROUTE
-				matchingRoute = @_fallbackRoute
-			else
-				result = @_matchPath(path, firstTime)
-				if result and result.route
-					matchingRoute = result.route
-					path = result.path or path
+			matchingRoute = @_matchPath(path)
+			matchingRoute = @_fallbackRoute if not matchingRoute
 
-			unless path is @current.path
-				@_go(matchingRoute, path, true)
+			@_go(matchingRoute, path, true) unless path is @current.path
 		
 		return @_pendingRoute
 
@@ -157,6 +138,14 @@ module.exports = class Router
 		return matchingRoute
 
 
+	listen: (initOnStart=true)->
+		@listening = true
+		Routing._registerRouter(@, initOnStart)
+		# (import '../')._registerRouter(@, initOnStart)
+
+		return @
+
+
 	beforeAll: (fn)->
 		@_globalBefore = fn
 		return @
@@ -166,15 +155,15 @@ module.exports = class Router
 		return @
 
 	base: (path)->
-		Routing._registerBasePath @_basePath = helpers.pathToRegex(helpers.cleanPath(path))
+		@_basePath = helpers.pathToRegex(helpers.cleanPath(path))
 		return @
 
-	root: (path)->
-		@_rootPath = helpers.cleanPath(path)
+	priority: (priority)->
+		@_priority = priority if priority and typeof priority is 'number'
 		return @
 
 	fallback: (fn)->
-		@_fallbackRoute = new Route(FALLBACK_ROUTE, [], @)
+		@_fallbackRoute = new Route('*FALLBACK*', [], @)
 		@_fallbackRoute.to(fn)
 		return @
 
@@ -194,26 +183,21 @@ module.exports = class Router
 		else
 			Promise.resolve()
 
+	refresh: ()->
+		if @current.route
+			@prev.path = @current.path
+			@prev.route = @current.route
+			@_go(@current.route, @current.path)
+		return @_pendingRoute
+
 	kill: ()->
 		@_routesMap = {}
 		@_cache = {}
 		@routes.length = @_history.length = @_future.length = 0
 		@_globalBefore = @_globalAfter = helpers.noop
+		@_fallbackRoute = null
 		@current.route = @current.path = @prev.route = @prev.path = null
 		return
-
-	listen: ()->
-		@listening = true
-		Routing._onChange @, @_listenCallback = (path, firstTime)=>
-			unless @_basePath and not @_basePath.test(path)
-				@go(path, firstTime, null)
-
-		return @
-
-	refresh: ()->
-		@prev.path = @current.path
-		@prev.route = @current.route
-		@_go(@current.route, @current.path)
 
 
 
