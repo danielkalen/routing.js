@@ -34,14 +34,18 @@ helpers.applyBase = (path, base)->
 
 helpers.removeBase = (path, base)->
 	if base and base.test(path)
-		return path.slice(base.length+1)
+		path = path.slice(base.length+1)
+		path = '/' if not path.length
 
 	return path
 
 
 helpers.cleanPath = (path)->
 	path = path.slice(1) if path[0] is '#'
-	if path.length > 1
+	if path.length is 0
+		path = '/'
+	
+	else if path.length > 1
 		path = path.slice(1) if path[0] is '/'
 		path = path.slice(0,-1) if path[path.length-1] is '/'
 
@@ -49,6 +53,7 @@ helpers.cleanPath = (path)->
 
 
 helpers.parsePath = (path)->
+	return ['/'] if path is '/'
 	dynamic = optional = false
 	currentSegment = ''
 	segments = []
