@@ -51,8 +51,10 @@ module.exports = class Route
 
 		return
 
-	Object.defineProperty @::, 'map', get: -> @router.map.bind(@router)
-	Object.defineProperty @::, 'listen', get: -> @router.listen.bind(@router)
+	Object.defineProperties @::,
+		'map': get: -> @router.map.bind(@router)
+		'mapOnce': get: -> @router.mapOnce.bind(@router)
+		'listen': get: -> @router.listen.bind(@router)
 
 
 

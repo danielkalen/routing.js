@@ -145,6 +145,10 @@ module.exports = class Router
 		return matchingRoute
 
 
+	mapOnce: (path)->
+		@map(path).to ()-> @remove()
+
+
 	listen: (initOnStart=true)->
 		@listening = true
 		Routing._registerRouter(@, initOnStart)
