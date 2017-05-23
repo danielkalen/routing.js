@@ -162,7 +162,7 @@ module.exports = class Router
 		return @
 
 	base: (path)->
-		@_basePath = helpers.pathToRegex(helpers.cleanPath(path))
+		@_basePath = helpers.pathToRegex(helpers.cleanPath(path), true)
 		return @
 
 	priority: (priority)->

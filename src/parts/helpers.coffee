@@ -86,9 +86,11 @@ helpers.parsePath = (path)->
 	return segments
 
 
-helpers.pathToRegex = (pathOrig)->
+helpers.pathToRegex = (pathOrig, openEnded)->
 	path = pathOrig.replace /\//g, '\\/'
-	regex = new RegExp "^#{pathOrig}"
+	regex = "^#{pathOrig}"
+	regex += '$' unless openEnded
+	regex = new RegExp(regex)
 	regex.string = pathOrig
 	regex.length = pathOrig.length
 	return regex
