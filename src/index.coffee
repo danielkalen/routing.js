@@ -27,7 +27,6 @@ do ()->
 			matchingRoutes = matchingRoutes.filter (route)-> route.router._priority is highestPriority
 			
 			for route in matchingRoutes
-				console.log route.path.string, route.router.current.path if window.yes
 				route.router._go(route, path, true) unless route.router.current.path is path
 
 			return

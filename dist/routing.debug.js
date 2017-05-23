@@ -585,9 +585,6 @@
           });
           for (n = 0, len2 = matchingRoutes.length; n < len2; n++) {
             route = matchingRoutes[n];
-            if (window.yes) {
-              console.log(route.path.string, route.router.current.path);
-            }
             if (route.router.current.path !== path) {
               route.router._go(route, path, true);
             }

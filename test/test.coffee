@@ -1072,11 +1072,12 @@ suite "Routing.JS", ()->
 				setHash('abc')
 
 
-	test.only "a route can be removed by calling its .remove() method or by invoking this.remove() from inside the route", ()->
+	test "a route can be removed by calling its .remove() method or by invoking this.remove() from inside the route", ()->
 		invokeCount = {abc:0, def:0}
 		Router = Routing.Router()
 		abcRoute = Router.map('abc').to ()-> invokeCount.abc++
 		defRoute = Router.map('def').to ()-> invokeCount.def++
+		Router.map('ghi')
 
 		Promise.resolve()
 			.then ()-> Router.listen()
@@ -1105,7 +1106,6 @@ suite "Routing.JS", ()->
 				expect(invokeCount.def).to.equal 2
 				expect(getHash()).to.equal 'abc'
 				defRoute.to ()-> @remove()
-				window.yes = 1
 				setHash('ghi').then ()-> setHash('def')
 
 			.then ()->
@@ -1118,6 +1118,80 @@ suite "Routing.JS", ()->
 				expect(invokeCount.abc).to.equal 2
 				expect(invokeCount.def).to.equal 3
 				expect(getHash()).to.equal 'def'
+
+
+	test "invoking this.redirect(target) from inside a route function will cause the router to redirect to the specified path", ()->
+		invokeCount = abc:0, def:0, ghi:0
+		Router = Routing.Router()
+
+		Promise.resolve()
+			.then ()->
+				Router.map('abc').to ()-> invokeCount.abc++; @redirect('def')
+				Router.map('def').to ()-> invokeCount.def++
+				Router.map('ghi').to ()-> invokeCount.ghi++; @redirect('abc')
+				Router.listen()
+			
+			.delay()
+			.then ()->
+				expect(invokeCount).to.eql {abc:0, def:0, ghi:0}
+				expect(Router.current.path).to.equal null
+				expect(getHash()).to.equal ''
+				setHash('abc')
+			
+			.then ()->
+				expect(invokeCount).to.eql {abc:1, def:1, ghi:0}
+				expect(Router.current.path).to.equal 'def'
+				expect(getHash()).to.equal 'def'
+				setHash('ghi')
+			
+			.then ()->
+				expect(invokeCount).to.eql {abc:2, def:2, ghi:1}
+				expect(Router.current.path).to.equal 'def'
+				expect(getHash()).to.equal 'def'
+				setHash('ghi')
+
+
+	test "redirects should replace the last entry in the router's history", ()->
+		invokeCount = abc:0, def:0, ghi:0
+		Router = Routing.Router()
+
+		Promise.resolve()
+			.then ()->
+				Router.map('abc').to ()-> invokeCount.abc++; @redirect('def')
+				Router.map('def').to ()-> invokeCount.def++
+				Router.map('ghi').to ()-> invokeCount.ghi++; @redirect('abc')
+				Router.map('jkl')
+				Router.listen()
+			
+			.delay()
+			.then ()->
+				expect(invokeCount).to.eql {abc:0, def:0, ghi:0}
+				expect(getHash()).to.equal ''
+				expect(Router.current.path).to.equal null
+				expect(Router._history.length).to.equal 0
+				setHash('abc')
+			
+			.then ()->
+				expect(invokeCount).to.eql {abc:1, def:1, ghi:0}
+				expect(getHash()).to.equal 'def'
+				expect(Router.current.path).to.equal 'def'
+				expect(Router._history.length).to.equal 0
+				setHash('jkl')
+			
+			.then ()->
+				expect(invokeCount).to.eql {abc:1, def:1, ghi:0}
+				expect(getHash()).to.equal 'jkl'
+				expect(Router.current.path).to.equal 'jkl'
+				expect(Router._history.length).to.equal 1
+				setHash('ghi')
+			
+			.then ()->
+				expect(invokeCount).to.eql {abc:2, def:2, ghi:1}
+				expect(getHash()).to.equal 'def'
+				expect(Router.current.path).to.equal 'def'
+				expect(Router._history.length).to.equal 2
+				expect(Router._history[1].path).to.equal 'jkl'
+
 
 
 	test "a router's .go() method can only accept strings", ()->
