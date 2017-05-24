@@ -1391,6 +1391,44 @@ suite "Routing.JS", ()->
 				expect(invokeCount.b).to.equal 3
 
 
+	test "routes can be marked as passive via route.passive() which will cause it not to update the window.location.hash or router history on transition", ()->
+		Router = Routing.Router()
+		window.invokeCount = activeA:0, activeB:0, passiveA:0, passiveB:0, passiveC:0
+
+		Promise.resolve()
+			.then ()->
+				Router
+					.map('def')
+					.map('abc/first').to ()-> invokeCount.activeA++
+					.map('abc/second').to ()-> invokeCount.activeB++
+					.map('abc/:paramA').passive().to ()-> invokeCount.passiveA++
+					.map('abc/:paramA/:paramC?').passive().to ()-> invokeCount.passiveB++
+					.map('abc/:paramA/:paramC').passive().to ()-> invokeCount.passiveC++
+					.listen('def')
+
+			.delay()
+			.then ()->
+				expect(invokeCount, 'def').to.eql activeA:0, activeB:0, passiveA:0, passiveB:0, passiveC:0
+				expect(Router._history.length).to.equal 0
+				expect(getHash()).to.equal 'def'
+				setHash('abc/first')
+
+			.then ()->
+				expect(invokeCount, 'abc/first').to.eql activeA:1, activeB:0, passiveA:1, passiveB:1, passiveC:0
+				expect(Router._history.length).to.equal 1
+				expect(getHash()).to.equal 'abc/first'
+				setHash('abc/second')
+
+			.then ()->
+				expect(invokeCount, 'abc/second').to.eql activeA:1, activeB:1, passiveA:2, passiveB:2, passiveC:0
+				expect(Router._history.length).to.equal 2
+				expect(getHash()).to.equal 'abc/second'
+				Router.go('abc/second/third')
+
+			.then ()->
+				expect(invokeCount, 'abc/second/third').to.eql activeA:1, activeB:1, passiveA:2, passiveB:3, passiveC:1
+				expect(Router._history.length).to.equal 2
+				expect(getHash()).to.equal 'abc/second'
 
 
 	test "router.kill() will destroy the router instance and will remove all handlers", ()->

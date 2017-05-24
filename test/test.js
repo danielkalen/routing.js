@@ -566,22 +566,38 @@
       test("a route can be mapped to invoke a specific function on hash change", function() {
         var Router, invokeCount;
         Router = Routing.Router();
-        invokeCount = 0;
-        Router.map('/another');
-        Router.map('/test').to(function() {
-          return invokeCount++;
-        });
-        return Promise.resolve(Router.listen()).then(function() {
-          expect(invokeCount).to.equal(0);
+        invokeCount = {
+          '/': 0,
+          '/test': 0,
+          '/another': 0
+        };
+        return Promise.resolve().then(function() {
+          return Router.map('/').to(function() {
+            return invokeCount['/']++;
+          }).map('/test').to(function() {
+            return invokeCount['/test']++;
+          }).map('/another').to(function() {
+            return invokeCount['/another']++;
+          }).listen();
+        }).delay().then(function() {
+          expect(invokeCount['/']).to.equal(1);
+          expect(invokeCount['/test']).to.equal(0);
+          expect(invokeCount['/another']).to.equal(0);
           return setHash('/test');
         }).then(function() {
-          expect(invokeCount).to.equal(1);
+          expect(invokeCount['/']).to.equal(1);
+          expect(invokeCount['/test']).to.equal(1);
+          expect(invokeCount['/another']).to.equal(0);
           return setHash('/another');
         }).then(function() {
-          expect(invokeCount).to.equal(1);
+          expect(invokeCount['/']).to.equal(1);
+          expect(invokeCount['/test']).to.equal(1);
+          expect(invokeCount['/another']).to.equal(1);
           return setHash('test');
         }).then(function() {
-          return expect(invokeCount).to.equal(2);
+          expect(invokeCount['/']).to.equal(1);
+          expect(invokeCount['/test']).to.equal(2);
+          return expect(invokeCount['/another']).to.equal(1);
         });
       });
       test("route functions will be invoked within a dedicated context", function() {
@@ -1432,13 +1448,13 @@
         }).then(function() {
           expect(invokeCount.route).to.equal(2);
           expect(invokeCount.fallback).to.equal(3);
-          return setHash('/api/5//kevin');
+          return setHash('/api/5/ /kevin');
         }).then(function() {
           expect(invokeCount.route).to.equal(3);
           expect(invokeCount.fallback).to.equal(3);
           return expect(params).to.eql({
             version: '5',
-            "function": '',
+            "function": ' ',
             username: 'kevin'
           });
         });
@@ -1523,46 +1539,64 @@
         invokeCount = {
           abc: 0,
           def: 0,
-          fallback: 0
+          fallback: 0,
+          root: 0
         };
-        return Promise.resolve().then(function() {
+        return Promise.resolve(setHash(base)).then(function() {
           return Router.base(base).fallback(function() {
             return invokeCount.fallback++;
+          }).map('/').to(function() {
+            return invokeCount.root++;
           }).map('abc').to(function() {
             return invokeCount.abc++;
           }).map('def').to(function() {
             return invokeCount.def++;
           }).listen();
         }).delay().then(function() {
-          expect(invokeCount.abc).to.equal(0);
-          expect(invokeCount.def).to.equal(0);
-          expect(invokeCount.fallback).to.equal(0);
+          expect(invokeCount).to.eql({
+            abc: 0,
+            def: 0,
+            fallback: 0,
+            root: 1
+          });
           return setHash('abc');
         }).then(function() {
-          expect(invokeCount.abc).to.equal(0);
-          expect(invokeCount.def).to.equal(0);
-          expect(invokeCount.fallback).to.equal(0);
-          expect(Router.current.path).to.equal(null);
+          expect(invokeCount).to.eql({
+            abc: 0,
+            def: 0,
+            fallback: 0,
+            root: 1
+          });
+          expect(Router.current.path).to.equal(base);
           expect(getHash()).to.equal('abc');
           return setHash(base + "/abc");
         }).then(function() {
-          expect(invokeCount.abc).to.equal(1);
-          expect(invokeCount.def).to.equal(0);
-          expect(invokeCount.fallback).to.equal(0);
+          expect(invokeCount).to.eql({
+            abc: 1,
+            def: 0,
+            fallback: 0,
+            root: 1
+          });
           expect(Router.current.path).to.equal(base + "/abc");
           expect(getHash()).to.equal(base + "/abc");
           return setHash('def');
         }).then(function() {
-          expect(invokeCount.abc).to.equal(1);
-          expect(invokeCount.def).to.equal(0);
-          expect(invokeCount.fallback).to.equal(0);
+          expect(invokeCount).to.eql({
+            abc: 1,
+            def: 0,
+            fallback: 0,
+            root: 1
+          });
           expect(Router.current.path).to.equal(base + "/abc");
           expect(getHash()).to.equal("def");
           return setHash(base + "/def");
         }).then(function() {
-          expect(invokeCount.abc).to.equal(1);
-          expect(invokeCount.def).to.equal(1);
-          expect(invokeCount.fallback).to.equal(0);
+          expect(invokeCount).to.eql({
+            abc: 1,
+            def: 1,
+            fallback: 0,
+            root: 1
+          });
           expect(Router.current.path).to.equal(base + "/def");
           return expect(getHash()).to.equal(base + "/def");
         });
@@ -2020,6 +2054,73 @@
         }).then(function() {
           expect(invokeCount.a).to.equal(3);
           return expect(invokeCount.b).to.equal(3);
+        });
+      });
+      test("routes can be marked as passive via route.passive() which will cause it not to update the window.location.hash or router history on transition", function() {
+        var Router;
+        Router = Routing.Router();
+        window.invokeCount = {
+          activeA: 0,
+          activeB: 0,
+          passiveA: 0,
+          passiveB: 0,
+          passiveC: 0
+        };
+        return Promise.resolve().then(function() {
+          return Router.map('def').map('abc/first').to(function() {
+            return invokeCount.activeA++;
+          }).map('abc/second').to(function() {
+            return invokeCount.activeB++;
+          }).map('abc/:paramA').passive().to(function() {
+            return invokeCount.passiveA++;
+          }).map('abc/:paramA/:paramC?').passive().to(function() {
+            return invokeCount.passiveB++;
+          }).map('abc/:paramA/:paramC').passive().to(function() {
+            return invokeCount.passiveC++;
+          }).listen('def');
+        }).delay().then(function() {
+          expect(invokeCount, 'def').to.eql({
+            activeA: 0,
+            activeB: 0,
+            passiveA: 0,
+            passiveB: 0,
+            passiveC: 0
+          });
+          expect(Router._history.length).to.equal(0);
+          expect(getHash()).to.equal('def');
+          return setHash('abc/first');
+        }).then(function() {
+          expect(invokeCount, 'abc/first').to.eql({
+            activeA: 1,
+            activeB: 0,
+            passiveA: 1,
+            passiveB: 1,
+            passiveC: 0
+          });
+          expect(Router._history.length).to.equal(1);
+          expect(getHash()).to.equal('abc/first');
+          return setHash('abc/second');
+        }).then(function() {
+          expect(invokeCount, 'abc/second').to.eql({
+            activeA: 1,
+            activeB: 1,
+            passiveA: 2,
+            passiveB: 2,
+            passiveC: 0
+          });
+          expect(Router._history.length).to.equal(2);
+          expect(getHash()).to.equal('abc/second');
+          return Router.go('abc/second/third');
+        }).then(function() {
+          expect(invokeCount, 'abc/second/third').to.eql({
+            activeA: 1,
+            activeB: 1,
+            passiveA: 2,
+            passiveB: 3,
+            passiveC: 1
+          });
+          expect(Router._history.length).to.equal(2);
+          return expect(getHash()).to.equal('abc/second');
         });
       });
       test("router.kill() will destroy the router instance and will remove all handlers", function() {
