@@ -49,25 +49,39 @@ suite "Routing.JS", ()->
 
 	test "a route can be mapped to invoke a specific function on hash change", ()->
 		Router = Routing.Router()
-		invokeCount = 0
+		invokeCount = {'/':0, '/test':0, '/another':0}
 		
-		Router.map('/another')
-		Router.map('/test').to ()-> invokeCount++
-		Promise.resolve(Router.listen())
+		Promise.resolve()
 			.then ()->
-				expect(invokeCount).to.equal 0
+				Router
+					.map('/').to ()-> invokeCount['/']++
+					.map('/test').to ()-> invokeCount['/test']++
+					.map('/another').to ()-> invokeCount['/another']++
+					.listen()
+
+			.delay()
+			.then ()->
+				expect(invokeCount['/']).to.equal 1
+				expect(invokeCount['/test']).to.equal 0
+				expect(invokeCount['/another']).to.equal 0
 				setHash('/test')
 		
 			.then ()->
-				expect(invokeCount).to.equal 1
+				expect(invokeCount['/']).to.equal 1
+				expect(invokeCount['/test']).to.equal 1
+				expect(invokeCount['/another']).to.equal 0
 				setHash('/another')
 
 			.then ()->
-				expect(invokeCount).to.equal 1
+				expect(invokeCount['/']).to.equal 1
+				expect(invokeCount['/test']).to.equal 1
+				expect(invokeCount['/another']).to.equal 1
 				setHash('test')
 
 			.then ()->
-				expect(invokeCount).to.equal 2
+				expect(invokeCount['/']).to.equal 1
+				expect(invokeCount['/test']).to.equal 2
+				expect(invokeCount['/another']).to.equal 1
 
 
 	test "route functions will be invoked within a dedicated context", ()->
