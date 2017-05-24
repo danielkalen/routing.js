@@ -24,6 +24,8 @@ replacements = [
 	[/_enterAction/g, 'eA']
 	[/_leaveAction/g, 'lA']
 	[/_context/g, '_ct']
+	[/_passive/g, '_ps']
+	[/_hasPassives/g, '_hp']
 	[/logError/g, 'lE']
 	[/removeItem/g, 'rI']
 	[/cleanPath/g, 'cP']

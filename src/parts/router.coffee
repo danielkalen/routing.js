@@ -44,42 +44,50 @@ module.exports = class Router
 
 
 	_matchPath: (path)->
-		matchingRoute = @_routesMap[path] or @_cache[path]
+		matchingRoute = @_cache[path]
 
-		if not matchingRoute			
-			for route in @routes
-				if route.path.test(path)
-					matchingRoute = route
+		if not matchingRoute
+			for route in @routes when route.path.test(path)
+				if route.segments.dynamic and route._dynamicFilters
+					matchingSoFar = true
+					segments = path.split('/') if not segments
 					
-					if not route.segments.dynamic or not route._dynamicFilters
-						break
-					else
-						matchingSoFar = true
-						segments = path.split('/') if not segments
-						
-						for segment,index in segments
-							if segment isnt route.segments[index]
-								dynamicSegment = route.segments.dynamic[index]
-								
-								if matchingSoFar=dynamicSegment?
-									if route._dynamicFilters[dynamicSegment]
-										matchingSoFar = route._dynamicFilters[dynamicSegment](segment)
+					for segment,index in segments
+						if segment isnt route.segments[index]
+							dynamicSegment = route.segments.dynamic[index]
+							
+							if matchingSoFar=dynamicSegment?
+								if route._dynamicFilters[dynamicSegment]
+									matchingSoFar = route._dynamicFilters[dynamicSegment](segment)
 
-							break if not matchingSoFar
+						break if not matchingSoFar
 
-						if not matchingSoFar
-							matchingRoute = false
-							continue
-						break
+					continue if not matchingSoFar
+				
+				if @_hasPassives
+					if route._passive
+						passiveRoutes = [] if not passiveRoutes
+						passiveRoutes.push route
+					else if not matchingRoute
+						matchingRoute = route
+				else
+					matchingRoute = route
+					break
 
+		if passiveRoutes
+			passiveRoutes.push(matchingRoute) if matchingRoute
+			matchingRoute = passiveRoutes
 		
 		return @_cache[path] = matchingRoute if matchingRoute
 
 
 
 	_go: (route, path, storeChange, navDirection)->
+		if route.constructor is Array
+			return Promise.all route.map (route_)=> @_go(route_, path, storeChange, navDirection)
+
 		path = helpers.applyBase(path, @_basePath)
-		if storeChange
+		if storeChange and not route._passive
 			window.location.hash = path unless path is helpers.currentPath()
 			
 			if navDirection is 'redirect'

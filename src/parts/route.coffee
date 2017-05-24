@@ -24,6 +24,10 @@ module.exports = class Route
 		@_dynamicFilters = filters
 		return @
 
+	passive: ()->
+		@_passive = @router._hasPassives = true
+		return @
+
 	remove: ()->
 		@router._removeRoute(@)
 
