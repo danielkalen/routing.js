@@ -873,12 +873,12 @@ suite "Routing.JS", ()->
 			.then ()->
 				expect(invokeCount.route).to.equal 2
 				expect(invokeCount.fallback).to.equal 3
-				setHash('/api/5//kevin')
+				setHash('/api/5/ /kevin')
 
 			.then ()->
 				expect(invokeCount.route).to.equal 3
 				expect(invokeCount.fallback).to.equal 3
-				expect(params).to.eql {version:'5', function:'', username:'kevin'}
+				expect(params).to.eql {version:'5', function:' ', username:'kevin'}
 
 
 	test "routing.Router() accpets a number-type argument which will be used as the route loading timeout (ms)", ()->
@@ -950,52 +950,43 @@ suite "Routing.JS", ()->
 	test "a base path can be specified via Routing.base() and will only match routes that begin with the base", ()->
 		base = 'theBase/goes/here'
 		Router = Routing.Router()
-		invokeCount = abc:0, def:0, fallback:0
+		invokeCount = abc:0, def:0, fallback:0, root:0
 		
-		Promise.resolve()
+		Promise.resolve(setHash(base))
 			.then ()->
 				Router
 					.base(base)
 					.fallback ()-> invokeCount.fallback++
+					.map('/').to ()-> invokeCount.root++
 					.map('abc').to ()-> invokeCount.abc++
 					.map('def').to ()-> invokeCount.def++
 					.listen()
 			
 			.delay()
 			.then ()->
-				expect(invokeCount.abc).to.equal 0
-				expect(invokeCount.def).to.equal 0
-				expect(invokeCount.fallback).to.equal 0
+				expect(invokeCount).to.eql abc:0, def:0, fallback:0, root:1
 				setHash('abc')
 
 			.then ()->
-				expect(invokeCount.abc).to.equal 0
-				expect(invokeCount.def).to.equal 0
-				expect(invokeCount.fallback).to.equal 0
-				expect(Router.current.path).to.equal null
+				expect(invokeCount).to.eql abc:0, def:0, fallback:0, root:1
+				expect(Router.current.path).to.equal base
 				expect(getHash()).to.equal 'abc'
 				setHash("#{base}/abc")
 
 			.then ()->
-				expect(invokeCount.abc).to.equal 1
-				expect(invokeCount.def).to.equal 0
-				expect(invokeCount.fallback).to.equal 0
+				expect(invokeCount).to.eql abc:1, def:0, fallback:0, root:1
 				expect(Router.current.path).to.equal "#{base}/abc"
 				expect(getHash()).to.equal "#{base}/abc"
 				setHash('def')
 
 			.then ()->
-				expect(invokeCount.abc).to.equal 1
-				expect(invokeCount.def).to.equal 0
-				expect(invokeCount.fallback).to.equal 0
+				expect(invokeCount).to.eql abc:1, def:0, fallback:0, root:1
 				expect(Router.current.path).to.equal "#{base}/abc"
 				expect(getHash()).to.equal "def"
 				setHash("#{base}/def")
 
 			.then ()->
-				expect(invokeCount.abc).to.equal 1
-				expect(invokeCount.def).to.equal 1
-				expect(invokeCount.fallback).to.equal 0
+				expect(invokeCount).to.eql abc:1, def:1, fallback:0, root:1
 				expect(Router.current.path).to.equal "#{base}/def"
 				expect(getHash()).to.equal "#{base}/def"
 
