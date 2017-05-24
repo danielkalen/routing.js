@@ -80,7 +80,7 @@ module.exports = class Router
 	_go: (route, path, storeChange, navDirection)->
 		path = helpers.applyBase(path, @_basePath)
 		if storeChange
-			window.location.hash = path
+			window.location.hash = path unless path is helpers.currentPath()
 			
 			if navDirection is 'redirect'
 				@current = @prev
