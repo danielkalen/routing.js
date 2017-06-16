@@ -696,7 +696,7 @@
           routers.push(routerInstance = new Router(timeout, ++currentID));
           return routerInstance;
         };
-        this.version = '1.0.5-c';
+        this.version = '1.1.0-alpha';
         return this;
       };
 
