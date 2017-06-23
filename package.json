@@ -1,6 +1,6 @@
 {
   "name": "routing.js",
-  "version": "1.1.0-alpha",
+  "version": "1.1.0-b",
   "description": "Simple, lightweight, promise-based client-side routing supporting IE8+",
   "main": "dist/index.js",
   "browser": {
@@ -8,7 +8,7 @@
     "./src": "src/index.coffee"
   },
   "scripts": {
-    "postversion": "echo \\'$(json -f package.json version)\\' > .config/.version.coffee && npm run build",
+    "postversion": "npm run build",
     "test": "npm run test:electron -s || true",
     "test:local": "open test/testrunner.html",
     "test:minified": "minified=1 npm run test:electron -s || true",
