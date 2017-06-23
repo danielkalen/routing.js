@@ -2,9 +2,9 @@
   "name": "routing.js",
   "version": "1.1.0-alpha",
   "description": "Simple, lightweight, promise-based client-side routing supporting IE8+",
-  "main": "dist/routing.js",
+  "main": "dist/index.js",
   "browser": {
-    "./debug": "dist/routing.debug.js",
+    "./debug": "dist/index.debug.js",
     "./src": "src/index.coffee"
   },
   "scripts": {
@@ -21,16 +21,14 @@
     "test-serve": "http-server -p 9201 --cors ./",
     "sauce-connect": "sc -u routingjs -k 9321bba9-2293-4e66-8fb5-06e255fbaa51",
     "build": "npm run compile && npm run minify",
-    "compile": "npm run compile:js && npm run compile:test",
-    "compile:js": "simplyimport -i src/index.coffee | coffee -cbs --no-header > dist/routing.debug.js",
-    "compile:test": "simplyimport -i test/test.coffee | coffee -cbs > test/test.js",
+    "compile": "cake compile",
+    "compile:debug": "cake -d compile",
     "minify": "npm run minify:super && npm run minify:manual && npm run minify:simple",
-    "minify:simple": "uglifyjs dist/routing.debug.js -m -c keep_fargs,unused=false -o dist/routing.js",
-    "minify:super": "closure-service dist/routing.debug.js > dist/routing.js",
+    "minify:simple": "uglifyjs dist/index.debug.js -m -c keep_fargs,unused=false -o dist/index.js",
+    "minify:super": "closure-service dist/index.debug.js > dist/index.js",
     "minify:manual": "coffee .config/manual-minify.coffee",
-    "watch": "npm run watch:js & npm run watch:test",
-    "watch:js": "simplywatch 'src/*.coffee' 'npm run compile:js -s'",
-    "watch:test": "simplywatch 'test/test.coffee' 'npm run compile:test -s'",
+    "watch": "cake watch",
+    "watch:debug": "cake -d watch",
     "coverage": "npm run coverage:run; npm run coverage:badge",
     "coverage:run": "coverage=true npm run test:electron",
     "coverage:badge": "badge-gen -d ./.config/badges/coverage",
@@ -67,11 +65,12 @@
     "karma-mocha-reporter": "^2.2.3",
     "karma-opera-launcher": "^1.0.0",
     "karma-safari-launcher": "^1.0.0",
+    "listr": "^0.12.0",
     "mocha": "^3.2.0",
     "simplyimport": "^4.0.0-e",
-    "simplywatch": "^3.0.0-c"
+    "simplywatch": "^3.0.0-c",
+    "smart-extend": "^1.6.0",
+    "uglify-js": "^3.0.19"
   },
-  "dependencies": {
-    "smart-extend": "^1.3.2"
-  }
+  "dependencies": {}
 }

@@ -1,4 +1,4 @@
-LIB_FILE = if process.env.minified then 'dist/routing.js' else 'dist/routing.debug.js'
+LIB_FILE = if process.env.minified then 'dist/index.js' else 'dist/index.debug.js'
 
 module.exports = (config)-> config.set
 	basePath: '../'

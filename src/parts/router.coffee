@@ -1,7 +1,7 @@
 Route = import './route'
 helpers = import './helpers'
 
-module.exports = class Router
+class Router
 	constructor: (@timeout, @ID)->
 		@timeout = 2500 if isNaN(@timeout)
 		@listening = false
@@ -159,8 +159,7 @@ module.exports = class Router
 
 	listen: (initOnStart=true)->
 		@listening = true
-		Routing._registerRouter(@, initOnStart)
-		# (import '../')._registerRouter(@, initOnStart)
+		(import '../')._registerRouter(@, initOnStart)
 
 		return @
 
@@ -233,3 +232,4 @@ module.exports = class Router
 
 
 
+module.exports = Router
