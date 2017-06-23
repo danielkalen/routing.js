@@ -550,7 +550,7 @@ Routing = new function() {
     routers.push(routerInstance = new Router(timeout, ++currentID));
     return routerInstance;
   };
-  this.version = "1.1.0-alpha";
+  this.version = "1.1.0-b";
   return this;
 };
 
