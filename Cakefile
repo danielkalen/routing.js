@@ -1,4 +1,4 @@
-process.title = 'simplywatch GV Health'
+process.title = 'simplywatch Routing.js'
 global.Promise = require 'bluebird'
 fs = require 'fs-jetpack'
 path = require 'path'
