@@ -1,11 +1,14 @@
+window.Promise = import 'bluebird'
+chai = import 'chai'
+chai.use(import 'chai-spies')
+chai.config.truncateThreshold = 1e3
 mocha.setup('tdd')
 mocha.slow(700)
-# mocha.timeout(12000)
-mocha.bail() unless window.location.hostname
-# Promise.config longStackTraces:true
-chai.use require('chai-spies')
-chai.config.truncateThreshold = 1e3
-expect = chai.expect
+mocha.bail() unless window.__karma__
+{expect} = chai
+Promise.config longStackTraces:false
+
+
 setHash = (targetHash, delay=1)-> new Promise (resolve)->
 	targetHash = getHash(targetHash)
 	handler = ()->

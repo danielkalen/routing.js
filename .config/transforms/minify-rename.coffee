@@ -1,4 +1,16 @@
-fs = require 'fs'
+module.exports = (file, options, file_, content)->
+	if options._flags.debug
+		return content
+	else
+		output = content
+		replacements.forEach (replacement)->
+			source = replacement[0]
+			dest = replacement[1]
+
+			output = output.replace(source, dest)
+		return output
+
+
 replacements = [
 	[/_fallbackRoute/g, '_F']
 	[/_basePath/g, '_bp']
@@ -37,15 +49,3 @@ replacements = [
 	[/segmentsToRegex/g, 'sRE']
 	[/copyObject/g, 'cO']
 ]
-
-
-fs.readFile 'dist/routing.js', {encoding:'utf8'}, (err, fileContent)-> if err then throw err else
-	output = fileContent
-	
-	replacements.forEach (replacement)->
-		source = replacement[0]
-		dest = replacement[1]
-
-		output = output.replace(source, dest)
-
-	fs.writeFile 'dist/routing.js', output, (err)-> if err then throw err
