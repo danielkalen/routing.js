@@ -6,7 +6,7 @@ mocha.setup('tdd')
 mocha.slow(700)
 mocha.bail() unless window.__karma__
 {expect} = chai
-Promise.config longStackTraces:false, warning:false
+Promise.config longStackTraces:false, warnings:false
 
 
 setHash = (targetHash, delay=4)-> new Promise (resolve)->
