@@ -1,6 +1,6 @@
 window.Promise = import 'bluebird'
 chai = import 'chai'
-chai.use(import 'chai-spies')
+sinon = import 'sinon'
 chai.config.truncateThreshold = 1e3
 mocha.setup('tdd')
 mocha.slow(700)
@@ -1056,8 +1056,7 @@ suite "Routing.JS", ()->
 
 		test "a failed route transition will cause the router to go to the fallback route if exists", ()->
 			invokeCount = 0
-			consoleError = console.error
-			console.error = chai.spy()
+			sinon.stub(console, 'error')
 
 			Promise.delay()
 				.then ()-> 
@@ -1077,13 +1076,12 @@ suite "Routing.JS", ()->
 					expect(getHash()).to.equal 'abc'
 					expect(invokeCount).to.equal 2
 				
-				.finally ()-> console.error = consoleError
+				.finally ()-> console.error.restore()
 
 
 		test "a failed route transition will cause the router to go to the previous route if no fallback exists", ()->
 			invokeCount = 0
-			consoleError = console.error
-			console.error = chai.spy()
+			sinon.stub(console, 'error')
 			Router = Routing.Router()
 
 			Promise.delay()
@@ -1107,7 +1105,7 @@ suite "Routing.JS", ()->
 					expect(getHash()).to.equal 'abc'
 					expect(invokeCount).to.equal 2
 				
-				.finally ()-> console.error = consoleError
+				.finally ()-> console.error.restore()
 
 
 
@@ -1720,8 +1718,7 @@ suite "Routing.JS", ()->
 
 
 		test "routing.Router() accpets a number-type argument which will be used as the route loading timeout (ms)", ()->
-			consoleError = console.error
-			console.error = chai.spy()
+			sinon.stub(console, 'error')
 			invokeCount = abc:0, def:0, ghi:0
 			delay = abc:0, def:0
 			Router = Routing.Router(20)
@@ -1741,7 +1738,7 @@ suite "Routing.JS", ()->
 					expect(invokeCount.abc).to.equal 1
 					expect(invokeCount.def).to.equal 0
 					expect(invokeCount.ghi).to.equal 0
-					expect(console.error).to.have.been.called.exactly 0
+					expect(console.error.callCount).to.equal 0
 					expect(Router.current.path).to.equal 'abc'
 					expect(getHash()).to.equal 'abc'
 					delay.abc = delay.def = 10
@@ -1751,7 +1748,7 @@ suite "Routing.JS", ()->
 					expect(invokeCount.abc).to.equal 1
 					expect(invokeCount.def).to.equal 1
 					expect(invokeCount.ghi).to.equal 0
-					expect(console.error).to.have.been.called.exactly 0
+					expect(console.error.callCount).to.equal 0
 					expect(Router.current.path).to.equal 'def'
 					expect(getHash()).to.equal 'def'
 					delay.abc = 20
@@ -1761,7 +1758,7 @@ suite "Routing.JS", ()->
 					expect(invokeCount.abc).to.equal 2
 					expect(invokeCount.def).to.equal 2
 					expect(invokeCount.ghi).to.equal 0
-					expect(console.error).to.have.been.called.exactly 1
+					expect(console.error.callCount).to.equal 1
 					expect(Router.current.path).to.equal 'def'
 					expect(getHash()).to.equal 'def'
 					delay.def = 20
@@ -1771,7 +1768,7 @@ suite "Routing.JS", ()->
 					expect(invokeCount.abc).to.equal 2
 					expect(invokeCount.def).to.equal 2
 					expect(invokeCount.ghi).to.equal 1
-					expect(console.error).to.have.been.called.exactly 1
+					expect(console.error.callCount).to.equal 1
 					expect(Router.current.path).to.equal 'ghi'
 					expect(getHash()).to.equal 'ghi'
 					setHash('def', 30)
@@ -1780,9 +1777,11 @@ suite "Routing.JS", ()->
 					expect(invokeCount.abc).to.equal 2
 					expect(invokeCount.def).to.equal 3
 					expect(invokeCount.ghi).to.equal 2
-					expect(console.error).to.have.been.called.exactly 2
+					expect(console.error.callCount).to.equal 2
 					expect(Router.current.path).to.equal 'ghi'
 					expect(getHash()).to.equal 'ghi'
+
+				.finally ()-> console.error.restore()
 
 
 
