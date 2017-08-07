@@ -1448,6 +1448,45 @@ suite "Routing.JS", ()->
 				expect(getHash()).to.equal 'abc/first'
 
 
+	test "passive routes should have different instances from non-passive routes", ()->
+		router = Routing.Router()
+		expect(router.map('/abc'), "non-passive = non-passive").to.equal(router.map('/abc'))
+		expect(router.map('/abc').passive(), "passive = passive").to.equal(router.map('/abc').passive())
+		expect(router.map('/abc').passive(), "passive = passive.passive").to.equal(router.map('/abc').passive().passive())
+		expect(router.map('/abc'), "non-passive != passive").not.to.equal(router.map('/abc').passive())
+		invokeCount = entering:0, to:0, leaving:0
+		
+		Promise.resolve()
+			.then ()->
+				router.map('/def').passive()
+					.entering ()-> invokeCount.entering++
+					.to ()-> invokeCount.to++
+					.leaving ()-> invokeCount.leaving++
+				
+				router.priority(0).listen()
+
+			.delay()
+			.then ()->
+				expect(invokeCount).to.eql entering:0, to:0, leaving:0
+				setHash('abc')
+
+			.then ()->
+				expect(invokeCount).to.eql entering:0, to:0, leaving:0
+				setHash('def')
+
+			.then ()->
+				expect(invokeCount).to.eql entering:1, to:1, leaving:0
+				setHash('abc')
+
+			.then ()->
+				expect(invokeCount).to.eql entering:1, to:1, leaving:1
+				setHash('def')
+
+			.then ()->
+				expect(invokeCount).to.eql entering:2, to:2, leaving:1
+
+
+
 	test "router.kill() will destroy the router instance and will remove all handlers", ()->
 		RouterA = Routing.Router()
 		RouterB = Routing.Router()

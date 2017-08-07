@@ -2,7 +2,7 @@ Context = import './context'
 helpers = import './helpers'
 
 module.exports = class Route
-	constructor: (@path, @segments, @router)->
+	constructor: (@path, @segments, @router, @_isPassive)->
 		@_context = new Context(@)
 		@_enterAction = @_leaveAction = helpers.noop
 		@_actions = []
@@ -25,8 +25,14 @@ module.exports = class Route
 		return @
 
 	passive: ()->
-		@_passive = @router._hasPassives = true
-		return @
+		if @_isPassive
+			return @
+
+		else if not @_passiveVersion
+			@_passiveVersion = new Route(@path, @segments, @router, true)
+			@router._hasPassives = true
+		
+		return @_passiveVersion
 
 	remove: ()->
 		@router._removeRoute(@)

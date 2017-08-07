@@ -52,9 +52,9 @@ class Router
 				continue if not route.matchesPath(path)
 				
 				if @_hasPassives
-					if route._passive
+					if route._passiveVersion
 						passiveRoutes = [] if not passiveRoutes
-						passiveRoutes.push route
+						passiveRoutes.push route._passiveVersion
 					else if not matchingRoute
 						matchingRoute = route
 				else
@@ -73,13 +73,13 @@ class Router
 		if not activeRoutes
 			activeRoutes = @_activeRoutes.slice()
 			@_activeRoutes.length = 0
-		
+
 		if route.constructor is Array
 			return Promise.all route.map (route_)=> @_go(route_, path, storeChange, navDirection, activeRoutes)
 		
 		path = helpers.applyBase(path, @_basePath)
 		
-		if storeChange and not route._passive
+		if storeChange and not route._isPassive
 			window.location.hash = path unless path is helpers.currentPath()
 			
 			if navDirection is 'redirect'
