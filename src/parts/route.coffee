@@ -1,58 +1,99 @@
+Context = import './context'
 helpers = import './helpers'
 
 module.exports = class Route
-	constructor: (@path, @segments, @router)->
-		@originalPath = @path
-		@enterAction = @leaveAction = helpers.noop
-		@actions = []
-		@context = {@path, @segments, params:{}}
-		@_dynamicFilters = {}
+	constructor: (@path, @segments, @router, @_isPassive)->
+		@_context = new Context(@)
+		@_enterAction = @_leaveAction = helpers.noop
+		@_actions = []
 
 
 	entering: (fn)->
-		@enterAction = fn
+		@_enterAction = fn
 		return @
 
 	leaving: (fn)->
-		@leaveAction = fn
+		@_leaveAction = fn
 		return @
 
 	to: (fn)->
-		@actions.push fn
+		@_actions.push fn
 		return @
 
 	filters: (filters)->
 		@_dynamicFilters = filters
 		return @
 
+	passive: ()->
+		if @_isPassive
+			return @
+
+		else if not @_passiveVersion
+			@_passiveVersion = new Route(@path, @segments, @router, true)
+			@router._hasPassives = true
+		
+		return @_passiveVersion
+
 	remove: ()->
 		@router._removeRoute(@)
 
 	_invokeAction: (action, relatedPath, relatedRoute)->
-		result = action.call(@context, relatedPath, relatedRoute)
+		result = action.call(@_context, relatedPath, relatedRoute)
 		if result is @router._pendingRoute
 			return null
 		else
 			return result
 
 	_run: (path, prevRoute, prevPath)->
-		@_resolveParams(path)
-		Promise.resolve(@_invokeAction(@enterAction, prevPath, prevRoute))
-			.then ()=> Promise.all @actions.map (action)=> @_invokeAction(action, prevPath, prevRoute)
+		@_isActive = true
+		@_context.params = @_resolveParams(path)
+		@_context.query = helpers.parseQuery(path)
 
-	_leave: (newRoute, newPath)->
-		@_invokeAction(@leaveAction, newPath, newRoute)
+		Promise.resolve(@_invokeAction(@_enterAction, prevPath, prevRoute))
+			.then ()=> Promise.all @_actions.map (action)=> @_invokeAction(action, prevPath, prevRoute)
 
-	_resolveParams: (path)-> if @segments.hasDynamic
-		path = @router._removeBase(path)
+	
+	_leave: (newRoute, newPath)-> if @_isActive
+		@_isActive = false
+		@_invokeAction(@_leaveAction, newPath, newRoute)
+
+
+	_resolveParams: (path)->
+		return helpers.noopObj if not @segments.dynamic
+		path = helpers.removeQuery helpers.removeBase(path, @router._basePath)
 		segments = path.split('/')
+		params = {}
 		
-		for dynamicIndex,dynamicSegment of @segments.dynamic
-			@context.params[dynamicSegment] = segments[dynamicIndex] or ''
+		for dynamicIndex,segmentName of @segments.dynamic when dynamicIndex isnt 'length'
+			params[segmentName] = segments[dynamicIndex] or ''
 
-		return
+		return params
 
-	Object.defineProperty @::, 'map', get: -> @router.map.bind(@router)
+
+	matchesPath: (target)->
+		isMatching = false
+		
+		if isMatching=@path.test(target)
+			if @segments.dynamic and @_dynamicFilters
+				segments = target.split('/') if not segments
+				
+				for segment,index in segments
+					if segment isnt @segments[index]
+						dynamicSegment = @segments.dynamic[index]
+						
+						if isMatching=dynamicSegment?
+							if @_dynamicFilters[dynamicSegment]
+								isMatching = @_dynamicFilters[dynamicSegment](segment)
+
+					break if not isMatching
+		
+		return isMatching
+
+
+	Object.defineProperties @::,
+		'map': get: -> @router.map.bind(@router)
+		'mapOnce': get: -> @router.mapOnce.bind(@router)
+		'listen': get: -> @router.listen.bind(@router)
 
 
 

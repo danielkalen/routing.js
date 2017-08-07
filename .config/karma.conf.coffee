@@ -1,24 +1,25 @@
+DIR = if process.env.CI then 'dist' else 'build'
+LIB_FILE = if process.env.minified then "#{DIR}/routing.js" else "#{DIR}/routing.debug.js"
+
 module.exports = (config)-> config.set
 	basePath: '../'
-	client: captureConsole: true
+	client: captureConsole: true unless process.env.sauce
 	browserConsoleLogOptions: level:'log', terminal:true
-	frameworks: ['mocha', 'chai']
+	frameworks: ['mocha']
 	files: [
-		'dist/routing.debug.js'
-		'node_modules/bluebird/js/browser/bluebird.js'
-		'node_modules/jquery/dist/jquery.min.js'
+		LIB_FILE
 		'test/test.js'
 	]
 	exclude: [
 		'**/*.git'
 	]
 
-	preprocessors: 'dist/routing.debug.js': 'coverage'
-	
-	reporters: ['mocha', 'coverage']
-
-	mochaReporter: 
-		output: 'minimal'
+	preprocessors: {"#{LIB_FILE}":'coverage'} if process.env.coverage
+	reporters: do ()->
+		reporters = ['progress']
+		reporters.push('coverage') if process.env.coverage
+		reporters.push('saucelabs') if process.env.sauce
+		return reporters
 
 	coverageReporter:
 		type: 'lcov'
@@ -27,13 +28,25 @@ module.exports = (config)-> config.set
 	
 	electronOpts:
 		show: false
-	
+
 	port: 9876
 	colors: true
 	logLevel: config.LOG_INFO
-	autoWatch: true
-	autoWatchBatchDelay: 1000
-	restartOnFileChange: true
+	# autoWatch: if process.env.sauce then false else true
+	# autoWatchBatchDelay: 1000
+	# restartOnFileChange: true
 	singleRun: true
-	concurrency: Infinity
-	browsers: ['Chrome', 'Firefox', 'Opera', 'Safari']
+	concurrency: if process.env.sauce then 2 else 5
+	captureTimeout: 1.8e5 if process.env.sauce
+	browserNoActivityTimeout: 1.8e5 if process.env.sauce
+	browserDisconnectTimeout: 1e4 if process.env.sauce
+	browserDisconnectTolerance: 3 if process.env.sauce
+	browsers: if process.env.sauce then Object.keys(require('./sauceTargets')) else ['Chrome', 'Firefox', 'Opera', 'Safari']
+	customLaunchers: require('./sauceTargets')
+	sauceLabs: 
+		testName: 'RoutingJS Test Suite'
+		recordVideo: false
+		recordScreenshots: false
+		build: require('../package.json').version+'-'+Math.round(Math.random()*1e6).toString(16)
+		username: 'routing'
+		accessKey: '9321bba9-2293-4e66-8fb5-06e255fbaa51'
