@@ -6,10 +6,10 @@ mocha.setup('tdd')
 mocha.slow(700)
 mocha.bail() unless window.__karma__
 {expect} = chai
-Promise.config longStackTraces:false
+Promise.config longStackTraces:false, warning:false
 
 
-setHash = (targetHash, delay=1)-> new Promise (resolve)->
+setHash = (targetHash, delay=4)-> new Promise (resolve)->
 	return resolve() if getHash() is getHash(targetHash)
 	targetHash = getHash(targetHash)
 	handler = ()->
@@ -1057,11 +1057,12 @@ suite "Routing.JS", ()->
 		test "a failed route transition will cause the router to go to the fallback route if exists", ()->
 			invokeCount = 0
 			sinon.stub(console, 'error')
+			thrown=false;
 
 			Promise.delay()
 				.then ()-> 
 					Router = Routing.Router()
-					Router.map('abc').to ()-> Promise.delay().then ()-> throw new Error 'rejected'
+					Router.map('abc').to ()-> Promise.delay().then ()-> thrown=true;throw new Error 'rejected'
 					Router.fallback ()-> invokeCount++
 					Router.listen()
 				
@@ -1074,6 +1075,7 @@ suite "Routing.JS", ()->
 			
 				.then ()->
 					expect(getHash()).to.equal 'abc'
+					expect(thrown).to.equal true
 					expect(invokeCount).to.equal 2
 				
 				.finally ()-> console.error.restore()
@@ -1160,6 +1162,7 @@ suite "Routing.JS", ()->
 				.then ()->
 					expect(invokeCount.route).to.equal 3
 					expect(invokeCount.fallback).to.equal 3
+					params.function = params.function.replace('%20',' ') if typeof params.function is 'string'
 					expect(params).to.eql {version:'5', function:' ', username:'kevin'}
 
 
