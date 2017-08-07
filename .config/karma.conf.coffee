@@ -48,5 +48,5 @@ module.exports = (config)-> config.set
 		recordVideo: false
 		recordScreenshots: false
 		build: require('../package.json').version+'-'+Math.round(Math.random()*1e6).toString(16)
-		username: 'routing'
-		accessKey: '9321bba9-2293-4e66-8fb5-06e255fbaa51'
+		username: 'routingjs'
+		accessKey: '21925ef8-2b2c-47fe-834e-0e1cdb69a3b5'
