@@ -1333,6 +1333,7 @@ suite "Routing.JS", ()->
 		test "redirects should replace the last entry in the router's history", ()->
 			invokeCount = abc:0, def:0, ghi:0
 			Router = Routing.Router()
+			Router.history = Router._history or Router._h
 
 			Promise.resolve()
 				.then ()->
@@ -1347,29 +1348,29 @@ suite "Routing.JS", ()->
 					expect(invokeCount).to.eql {abc:0, def:0, ghi:0}
 					expect(getHash()).to.equal ''
 					expect(Router.current.path).to.equal null
-					expect(Router._history.length).to.equal 0
+					expect(Router.history.length).to.equal 0
 					setHash('abc')
 				
 				.then ()->
 					expect(invokeCount).to.eql {abc:1, def:1, ghi:0}
 					expect(getHash()).to.equal 'def'
 					expect(Router.current.path).to.equal 'def'
-					expect(Router._history.length).to.equal 0
+					expect(Router.history.length).to.equal 0
 					setHash('jkl')
 				
 				.then ()->
 					expect(invokeCount).to.eql {abc:1, def:1, ghi:0}
 					expect(getHash()).to.equal 'jkl'
 					expect(Router.current.path).to.equal 'jkl'
-					expect(Router._history.length).to.equal 1
+					expect(Router.history.length).to.equal 1
 					setHash('ghi')
 				
 				.then ()->
 					expect(invokeCount).to.eql {abc:2, def:2, ghi:1}
 					expect(getHash()).to.equal 'def'
 					expect(Router.current.path).to.equal 'def'
-					expect(Router._history.length).to.equal 2
-					expect(Router._history[1].path).to.equal 'jkl'
+					expect(Router.history.length).to.equal 2
+					expect(Router.history[1].path).to.equal 'jkl'
 
 
 
@@ -1468,6 +1469,7 @@ suite "Routing.JS", ()->
 	suite "passive routes", ()->
 		test "routes can be marked as passive via route.passive() which will cause it not to update the window.location.hash or router history on transition", ()->
 			Router = Routing.Router()
+			Router.history = Router._history or Router._h
 			window.invokeCount = aA:0, aB:0, pA:0, pB:0, pC:0, lA:0, lD:0, eD:0
 
 			Promise.resolve()
@@ -1489,37 +1491,37 @@ suite "Routing.JS", ()->
 				.then ()->
 					# console.log Router.routes.map (p)-> p.path.string
 					expect(invokeCount, 'def').to.eql aA:0, aB:0, pA:0, pB:0, pC:0, lA:0, lD:0, eD:0
-					expect(Router._history.length).to.equal 0
+					expect(Router.history.length).to.equal 0
 					expect(getHash()).to.equal 'def'
 					setHash('abc/first')
 
 				.then ()->
 					expect(invokeCount, 'abc/first').to.eql aA:1, aB:0, pA:1, pB:1, pC:0, lA:0, lD:0, eD:0
-					expect(Router._history.length).to.equal 1
+					expect(Router.history.length).to.equal 1
 					expect(getHash()).to.equal 'abc/first'
 					setHash('abc/second')
 
 				.then ()->
 					expect(invokeCount, 'abc/second').to.eql aA:1, aB:1, pA:2, pB:2, pC:0, lA:1, lD:0, eD:0
-					expect(Router._history.length).to.equal 2
+					expect(Router.history.length).to.equal 2
 					expect(getHash()).to.equal 'abc/second'
 					Router.go('abc/second/third')
 
 				.then ()->
 					expect(invokeCount, 'abc/second/third').to.eql aA:1, aB:1, pA:2, pB:3, pC:1, lA:2, lD:0, eD:0
-					expect(Router._history.length).to.equal 2
+					expect(Router.history.length).to.equal 2
 					expect(getHash()).to.equal 'abc/second'
 					Router.go('ghi')
 
 				.then ()->
 					expect(invokeCount, 'ghi').to.eql aA:1, aB:1, pA:2, pB:3, pC:1, lA:2, lD:0, eD:1
-					expect(Router._history.length).to.equal 2
+					expect(Router.history.length).to.equal 2
 					expect(getHash()).to.equal 'abc/second'
 					Router.go('abc/first')
 
 				.then ()->
 					expect(invokeCount, 'abc/first').to.eql aA:2, aB:1, pA:3, pB:4, pC:1, lA:2, lD:1, eD:1
-					expect(Router._history.length).to.equal 3
+					expect(Router.history.length).to.equal 3
 					expect(getHash()).to.equal 'abc/first'
 
 
