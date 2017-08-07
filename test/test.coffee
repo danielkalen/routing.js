@@ -4,6 +4,7 @@ mocha.slow(700)
 mocha.bail() unless window.location.hostname
 # Promise.config longStackTraces:true
 chai.use require('chai-spies')
+chai.config.truncateThreshold = 1e3
 expect = chai.expect
 setHash = (targetHash, delay=1)-> new Promise (resolve)->
 	targetHash = getHash(targetHash)
@@ -1393,42 +1394,58 @@ suite "Routing.JS", ()->
 
 	test "routes can be marked as passive via route.passive() which will cause it not to update the window.location.hash or router history on transition", ()->
 		Router = Routing.Router()
-		window.invokeCount = activeA:0, activeB:0, passiveA:0, passiveB:0, passiveC:0
+		window.invokeCount = aA:0, aB:0, pA:0, pB:0, pC:0, lA:0, lD:0, eD:0
 
 		Promise.resolve()
 			.then ()->
 				Router
 					.map('def')
-					.map('abc/first').to ()-> invokeCount.activeA++
-					.map('abc/second').to ()-> invokeCount.activeB++
-					.map('abc/:paramA').passive().to ()-> invokeCount.passiveA++
-					.map('abc/:paramA/:paramC?').passive().to ()-> invokeCount.passiveB++
-					.map('abc/:paramA/:paramC').passive().to ()-> invokeCount.passiveC++
+					.map('abc/first').to ()-> invokeCount.aA++
+					.map('abc/second').to ()-> invokeCount.aB++
+					.map('abc/:paramA').passive().to ()-> invokeCount.pA++
+					.map('abc/:paramA').passive().leaving ()-> invokeCount.lA++
+					.map('abc/:paramA/:paramC?').passive().to ()-> invokeCount.pB++
+					.map('abc/:paramA/:paramC').passive().to ()-> invokeCount.pC++
+					.map('ghi').passive()
+						.entering ()-> invokeCount.eD++
+						.leaving ()-> invokeCount.lD++
 					.listen('def')
 
 			.delay()
 			.then ()->
-				expect(invokeCount, 'def').to.eql activeA:0, activeB:0, passiveA:0, passiveB:0, passiveC:0
+				expect(invokeCount, 'def').to.eql aA:0, aB:0, pA:0, pB:0, pC:0, lA:0, lD:0, eD:0
 				expect(Router._history.length).to.equal 0
 				expect(getHash()).to.equal 'def'
 				setHash('abc/first')
 
 			.then ()->
-				expect(invokeCount, 'abc/first').to.eql activeA:1, activeB:0, passiveA:1, passiveB:1, passiveC:0
+				expect(invokeCount, 'abc/first').to.eql aA:1, aB:0, pA:1, pB:1, pC:0, lA:0, lD:0, eD:0
 				expect(Router._history.length).to.equal 1
 				expect(getHash()).to.equal 'abc/first'
 				setHash('abc/second')
 
 			.then ()->
-				expect(invokeCount, 'abc/second').to.eql activeA:1, activeB:1, passiveA:2, passiveB:2, passiveC:0
+				expect(invokeCount, 'abc/second').to.eql aA:1, aB:1, pA:2, pB:2, pC:0, lA:1, lD:0, eD:0
 				expect(Router._history.length).to.equal 2
 				expect(getHash()).to.equal 'abc/second'
 				Router.go('abc/second/third')
 
 			.then ()->
-				expect(invokeCount, 'abc/second/third').to.eql activeA:1, activeB:1, passiveA:2, passiveB:3, passiveC:1
+				expect(invokeCount, 'abc/second/third').to.eql aA:1, aB:1, pA:2, pB:3, pC:1, lA:2, lD:0, eD:0
 				expect(Router._history.length).to.equal 2
 				expect(getHash()).to.equal 'abc/second'
+				Router.go('ghi')
+
+			.then ()->
+				expect(invokeCount, 'ghi').to.eql aA:1, aB:1, pA:2, pB:3, pC:1, lA:2, lD:0, eD:1
+				expect(Router._history.length).to.equal 2
+				expect(getHash()).to.equal 'abc/second'
+				Router.go('abc/first')
+
+			.then ()->
+				expect(invokeCount, 'abc/first').to.eql aA:2, aB:1, pA:3, pB:4, pC:1, lA:2, lD:1, eD:1
+				expect(Router._history.length).to.equal 3
+				expect(getHash()).to.equal 'abc/first'
 
 
 	test "router.kill() will destroy the router instance and will remove all handlers", ()->

@@ -10,6 +10,9 @@ helpers.copyObject = (source)->
 	target[key] = value for key,value of source
 	return target
 
+helpers.includes = (target, item)->
+	target.indexOf(item) isnt -1
+
 helpers.removeItem = (target, item)->
 	itemIndex = target.indexOf(item)
 	target.splice(itemIndex, 1) # if itemIndex isnt -1

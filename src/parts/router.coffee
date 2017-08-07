@@ -13,6 +13,7 @@ class Router
 		@_future = []
 		@_globalBefore = @_globalAfter = helpers.noop
 		@_pendingRoute = Promise.resolve()
+		@_activeRoutes = []
 		@current = @prev = {route:null, path:null}
 
 
@@ -47,22 +48,8 @@ class Router
 		matchingRoute = @_cache[path]
 
 		if not matchingRoute
-			for route in @routes when route.path.test(path)
-				if route.segments.dynamic and route._dynamicFilters
-					matchingSoFar = true
-					segments = path.split('/') if not segments
-					
-					for segment,index in segments
-						if segment isnt route.segments[index]
-							dynamicSegment = route.segments.dynamic[index]
-							
-							if matchingSoFar=dynamicSegment?
-								if route._dynamicFilters[dynamicSegment]
-									matchingSoFar = route._dynamicFilters[dynamicSegment](segment)
-
-						break if not matchingSoFar
-
-					continue if not matchingSoFar
+			for route in @routes
+				continue if not route.matchesPath(path)
 				
 				if @_hasPassives
 					if route._passive
@@ -82,11 +69,16 @@ class Router
 
 
 
-	_go: (route, path, storeChange, navDirection)->
+	_go: (route, path, storeChange, navDirection, activeRoutes)->
+		if not activeRoutes
+			activeRoutes = @_activeRoutes.slice()
+			@_activeRoutes.length = 0
+		
 		if route.constructor is Array
-			return Promise.all route.map (route_)=> @_go(route_, path, storeChange, navDirection)
-
+			return Promise.all route.map (route_)=> @_go(route_, path, storeChange, navDirection, activeRoutes)
+		
 		path = helpers.applyBase(path, @_basePath)
+		
 		if storeChange and not route._passive
 			window.location.hash = path unless path is helpers.currentPath()
 			
@@ -99,16 +91,17 @@ class Router
 			
 			@prev = helpers.copyObject(@current)
 			@current = {route, path}
-		
+
 
 		@_pendingRoute = @_pendingRoute.then ()=> new Promise (resolve, reject)=>			
 			setTimeout ()=>
 				reject(new Error "TimeoutError: '#{path}' failed to load within #{@timeout}ms (Router ##{@ID})")
 			, @timeout
+			@_activeRoutes.push(route) unless route is @_fallbackRoute or helpers.includes(@_activeRoutes, route)
 
 			Promise.resolve()
 				.then @_globalBefore
-				.then ()=> @prev.route?._leave(@current.route, @current.path)
+				.then ()=> Promise.all(activeRoutes.map (route)=> route._leave(@current.route, @current.path))
 				.then ()=> route._run(path, @prev.route, @prev.path)
 				.then @_globalAfter
 				.then resolve

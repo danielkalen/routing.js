@@ -64,7 +64,7 @@ task 'watch:js', (options)->
 			Promise.resolve()
 				.then ()->
 					fileBase = path.basename(file,'.coffee')
-					{src:"src/coffee/#{fileBase}.coffee", dest:"dist/js/#{fileBase}.js", destDebug:"dist/#{fileBase}.debug.js", base:fileBase}
+					{src:"src/#{fileBase}.coffee", dest:"dist/#{fileBase}.js", destDebug:"dist/#{fileBase}.debug.js", base:fileBase}
 
 				.then (file)-> compileJS(file, options, umd:'Routing')
 

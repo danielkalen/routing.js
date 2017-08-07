@@ -10,6 +10,8 @@ replacements = [
 	[/_globalBefore/g, '_gB']
 	[/_globalAfter/g, '_gA']
 	[/_pendingRoute/g, '_P']
+	[/_activeRoutes/g, '_aR']
+	[/_isActive/g, '_a']
 	[/_matchPath/g, '_M']
 	[/_addRoute/g, '_A']
 	[/_onChange/g, '_oC']

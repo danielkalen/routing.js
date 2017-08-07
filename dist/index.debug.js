@@ -1,150 +1,12 @@
 (function (require) {
-require = (function (cache, modules) {
+require = (function (cache, modules, cx) {
 return function (r) {
 if (!modules[r]) throw new Error(r + ' is not a module');
 return cache[r] ? cache[r].exports : ((cache[r] = {
 exports: {}
-}, cache[r].exports = modules[r](require, cache[r], cache[r].exports)));
+}, cache[r].exports = modules[r].call(cx, require, cache[r], cache[r].exports)));
 };
 })({}, {
-4: function (require, module, exports) {
-var Context, Route, helpers;
-
-Context = require(5);
-
-helpers = require(2);
-
-module.exports = Route = (function() {
-  function Route(path1, segments1, router) {
-    this.path = path1;
-    this.segments = segments1;
-    this.router = router;
-    this._context = new Context(this);
-    this._enterAction = this._leaveAction = helpers.noop;
-    this._actions = [];
-  }
-
-  Route.prototype.entering = function(fn) {
-    this._enterAction = fn;
-    return this;
-  };
-
-  Route.prototype.leaving = function(fn) {
-    this._leaveAction = fn;
-    return this;
-  };
-
-  Route.prototype.to = function(fn) {
-    this._actions.push(fn);
-    return this;
-  };
-
-  Route.prototype.filters = function(filters) {
-    this._dynamicFilters = filters;
-    return this;
-  };
-
-  Route.prototype.passive = function() {
-    this._passive = this.router._hasPassives = true;
-    return this;
-  };
-
-  Route.prototype.remove = function() {
-    return this.router._removeRoute(this);
-  };
-
-  Route.prototype._invokeAction = function(action, relatedPath, relatedRoute) {
-    var result;
-    result = action.call(this._context, relatedPath, relatedRoute);
-    if (result === this.router._pendingRoute) {
-      return null;
-    } else {
-      return result;
-    }
-  };
-
-  Route.prototype._run = function(path, prevRoute, prevPath) {
-    this._resolveParams(path);
-    return Promise.resolve(this._invokeAction(this._enterAction, prevPath, prevRoute)).then((function(_this) {
-      return function() {
-        return Promise.all(_this._actions.map(function(action) {
-          return _this._invokeAction(action, prevPath, prevRoute);
-        }));
-      };
-    })(this));
-  };
-
-  Route.prototype._leave = function(newRoute, newPath) {
-    return this._invokeAction(this._leaveAction, newPath, newRoute);
-  };
-
-  Route.prototype._resolveParams = function(path) {
-    var dynamicIndex, ref, segmentName, segments;
-    if (this.segments.dynamic) {
-      path = helpers.removeBase(path, this.router._basePath);
-      segments = path.split('/');
-      ref = this.segments.dynamic;
-      for (dynamicIndex in ref) {
-        segmentName = ref[dynamicIndex];
-        if (dynamicIndex !== 'length') {
-          this._context.params[segmentName] = segments[dynamicIndex] || '';
-        }
-      }
-    }
-  };
-
-  Object.defineProperties(Route.prototype, {
-    'map': {
-      get: function() {
-        return this.router.map.bind(this.router);
-      }
-    },
-    'mapOnce': {
-      get: function() {
-        return this.router.mapOnce.bind(this.router);
-      }
-    },
-    'listen': {
-      get: function() {
-        return this.router.listen.bind(this.router);
-      }
-    }
-  });
-
-  return Route;
-
-})();
-
-;
-return module.exports;
-},
-5: function (require, module, exports) {
-var Context;
-
-module.exports = Context = (function() {
-  function Context(route) {
-    this.route = route;
-    this.segments = this.route.segments;
-    this.path = this.route.path.string;
-    this.params = {};
-  }
-
-  Context.prototype.remove = function() {
-    return this.route.remove();
-  };
-
-  Context.prototype.redirect = function(path) {
-    this.route.router.go(path, 'redirect');
-    return Promise.resolve();
-  };
-
-  return Context;
-
-})();
-
-;
-return module.exports;
-},
 1: function (require, module, exports) {
 var Route, Router, helpers;
 
@@ -168,6 +30,7 @@ Router = (function() {
     this._future = [];
     this._globalBefore = this._globalAfter = helpers.noop;
     this._pendingRoute = Promise.resolve();
+    this._activeRoutes = [];
     this.current = this.prev = {
       route: null,
       path: null
@@ -209,37 +72,14 @@ Router = (function() {
   };
 
   Router.prototype._matchPath = function(path) {
-    var dynamicSegment, i, index, j, len, len1, matchingRoute, matchingSoFar, passiveRoutes, ref, route, segment, segments;
+    var i, len, matchingRoute, passiveRoutes, ref, route;
     matchingRoute = this._cache[path];
     if (!matchingRoute) {
       ref = this.routes;
       for (i = 0, len = ref.length; i < len; i++) {
         route = ref[i];
-        if (!(route.path.test(path))) {
+        if (!route.matchesPath(path)) {
           continue;
-        }
-        if (route.segments.dynamic && route._dynamicFilters) {
-          matchingSoFar = true;
-          if (!segments) {
-            segments = path.split('/');
-          }
-          for (index = j = 0, len1 = segments.length; j < len1; index = ++j) {
-            segment = segments[index];
-            if (segment !== route.segments[index]) {
-              dynamicSegment = route.segments.dynamic[index];
-              if (matchingSoFar = dynamicSegment != null) {
-                if (route._dynamicFilters[dynamicSegment]) {
-                  matchingSoFar = route._dynamicFilters[dynamicSegment](segment);
-                }
-              }
-            }
-            if (!matchingSoFar) {
-              break;
-            }
-          }
-          if (!matchingSoFar) {
-            continue;
-          }
         }
         if (this._hasPassives) {
           if (route._passive) {
@@ -267,11 +107,15 @@ Router = (function() {
     }
   };
 
-  Router.prototype._go = function(route, path, storeChange, navDirection) {
+  Router.prototype._go = function(route, path, storeChange, navDirection, activeRoutes) {
+    if (!activeRoutes) {
+      activeRoutes = this._activeRoutes.slice();
+      this._activeRoutes.length = 0;
+    }
     if (route.constructor === Array) {
       return Promise.all(route.map((function(_this) {
         return function(route_) {
-          return _this._go(route_, path, storeChange, navDirection);
+          return _this._go(route_, path, storeChange, navDirection, activeRoutes);
         };
       })(this)));
     }
@@ -302,9 +146,13 @@ Router = (function() {
           setTimeout(function() {
             return reject(new Error("TimeoutError: '" + path + "' failed to load within " + _this.timeout + "ms (Router #" + _this.ID + ")"));
           }, _this.timeout);
+          if (!(route === _this._fallbackRoute || helpers.includes(_this._activeRoutes, route))) {
+            _this._activeRoutes.push(route);
+          }
           return Promise.resolve().then(_this._globalBefore).then(function() {
-            var ref;
-            return (ref = _this.prev.route) != null ? ref._leave(_this.current.route, _this.current.path) : void 0;
+            return Promise.all(activeRoutes.map(function(route) {
+              return route._leave(_this.current.route, _this.current.path);
+            }));
           }).then(function() {
             return route._run(path, _this.prev.route, _this.prev.path);
           }).then(_this._globalAfter).then(resolve)["catch"](reject);
@@ -446,6 +294,33 @@ module.exports = Router;
 ;
 return module.exports;
 },
+5: function (require, module, exports) {
+var Context;
+
+module.exports = Context = (function() {
+  function Context(route) {
+    this.route = route;
+    this.segments = this.route.segments;
+    this.path = this.route.path.string;
+    this.params = {};
+  }
+
+  Context.prototype.remove = function() {
+    return this.route.remove();
+  };
+
+  Context.prototype.redirect = function(path) {
+    this.route.router.go(path, 'redirect');
+    return Promise.resolve();
+  };
+
+  return Context;
+
+})();
+
+;
+return module.exports;
+},
 0: function (require, module, exports) {
 var Router, Routing, helpers;
 
@@ -559,6 +434,148 @@ module.exports = Routing;
 ;
 return module.exports;
 },
+4: function (require, module, exports) {
+var Context, Route, helpers;
+
+Context = require(5);
+
+helpers = require(2);
+
+module.exports = Route = (function() {
+  function Route(path1, segments1, router) {
+    this.path = path1;
+    this.segments = segments1;
+    this.router = router;
+    this._context = new Context(this);
+    this._enterAction = this._leaveAction = helpers.noop;
+    this._actions = [];
+  }
+
+  Route.prototype.entering = function(fn) {
+    this._enterAction = fn;
+    return this;
+  };
+
+  Route.prototype.leaving = function(fn) {
+    this._leaveAction = fn;
+    return this;
+  };
+
+  Route.prototype.to = function(fn) {
+    this._actions.push(fn);
+    return this;
+  };
+
+  Route.prototype.filters = function(filters) {
+    this._dynamicFilters = filters;
+    return this;
+  };
+
+  Route.prototype.passive = function() {
+    this._passive = this.router._hasPassives = true;
+    return this;
+  };
+
+  Route.prototype.remove = function() {
+    return this.router._removeRoute(this);
+  };
+
+  Route.prototype._invokeAction = function(action, relatedPath, relatedRoute) {
+    var result;
+    result = action.call(this._context, relatedPath, relatedRoute);
+    if (result === this.router._pendingRoute) {
+      return null;
+    } else {
+      return result;
+    }
+  };
+
+  Route.prototype._run = function(path, prevRoute, prevPath) {
+    this._isActive = true;
+    this._resolveParams(path);
+    return Promise.resolve(this._invokeAction(this._enterAction, prevPath, prevRoute)).then((function(_this) {
+      return function() {
+        return Promise.all(_this._actions.map(function(action) {
+          return _this._invokeAction(action, prevPath, prevRoute);
+        }));
+      };
+    })(this));
+  };
+
+  Route.prototype._leave = function(newRoute, newPath) {
+    if (this._isActive) {
+      this._isActive = false;
+      return this._invokeAction(this._leaveAction, newPath, newRoute);
+    }
+  };
+
+  Route.prototype._resolveParams = function(path) {
+    var dynamicIndex, ref, segmentName, segments;
+    if (this.segments.dynamic) {
+      path = helpers.removeBase(path, this.router._basePath);
+      segments = path.split('/');
+      ref = this.segments.dynamic;
+      for (dynamicIndex in ref) {
+        segmentName = ref[dynamicIndex];
+        if (dynamicIndex !== 'length') {
+          this._context.params[segmentName] = segments[dynamicIndex] || '';
+        }
+      }
+    }
+  };
+
+  Route.prototype.matchesPath = function(target) {
+    var dynamicSegment, i, index, isMatching, len, segment, segments;
+    isMatching = false;
+    if (isMatching = this.path.test(target)) {
+      if (this.segments.dynamic && this._dynamicFilters) {
+        if (!segments) {
+          segments = target.split('/');
+        }
+        for (index = i = 0, len = segments.length; i < len; index = ++i) {
+          segment = segments[index];
+          if (segment !== this.segments[index]) {
+            dynamicSegment = this.segments.dynamic[index];
+            if (isMatching = dynamicSegment != null) {
+              if (this._dynamicFilters[dynamicSegment]) {
+                isMatching = this._dynamicFilters[dynamicSegment](segment);
+              }
+            }
+          }
+          if (!isMatching) {
+            break;
+          }
+        }
+      }
+    }
+    return isMatching;
+  };
+
+  Object.defineProperties(Route.prototype, {
+    'map': {
+      get: function() {
+        return this.router.map.bind(this.router);
+      }
+    },
+    'mapOnce': {
+      get: function() {
+        return this.router.mapOnce.bind(this.router);
+      }
+    },
+    'listen': {
+      get: function() {
+        return this.router.listen.bind(this.router);
+      }
+    }
+  });
+
+  return Route;
+
+})();
+
+;
+return module.exports;
+},
 2: function (require, module, exports) {
 var helpers;
 
@@ -580,6 +597,10 @@ helpers.copyObject = function(source) {
     target[key] = value;
   }
   return target;
+};
+
+helpers.includes = function(target, item) {
+  return target.indexOf(item) !== -1;
 };
 
 helpers.removeItem = function(target, item) {
@@ -729,7 +750,7 @@ helpers.segmentsToRegex = function(segments) {
 ;
 return module.exports;
 }
-});
+}, this);
 if (typeof define === 'function' && define.umd) {
 define(function () {
 return require(0);

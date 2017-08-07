@@ -39,11 +39,13 @@ module.exports = class Route
 			return result
 
 	_run: (path, prevRoute, prevPath)->
+		@_isActive = true
 		@_resolveParams(path)
 		Promise.resolve(@_invokeAction(@_enterAction, prevPath, prevRoute))
 			.then ()=> Promise.all @_actions.map (action)=> @_invokeAction(action, prevPath, prevRoute)
 
-	_leave: (newRoute, newPath)->
+	_leave: (newRoute, newPath)-> if @_isActive
+		@_isActive = false
 		@_invokeAction(@_leaveAction, newPath, newRoute)
 
 	_resolveParams: (path)-> if @segments.dynamic
@@ -54,6 +56,26 @@ module.exports = class Route
 			@_context.params[segmentName] = segments[dynamicIndex] or ''
 
 		return
+
+	matchesPath: (target)->
+		isMatching = false
+		
+		if isMatching=@path.test(target)
+			if @segments.dynamic and @_dynamicFilters
+				segments = target.split('/') if not segments
+				
+				for segment,index in segments
+					if segment isnt @segments[index]
+						dynamicSegment = @segments.dynamic[index]
+						
+						if isMatching=dynamicSegment?
+							if @_dynamicFilters[dynamicSegment]
+								isMatching = @_dynamicFilters[dynamicSegment](segment)
+
+					break if not isMatching
+		
+		return isMatching
+
 
 	Object.defineProperties @::,
 		'map': get: -> @router.map.bind(@router)
