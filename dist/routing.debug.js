@@ -7,177 +7,198 @@ exports: {}
 }, cache[r].exports = modules[r].call(cx, require, cache[r], cache[r].exports)));
 };
 })({}, {
-4: function (require, module, exports) {
-var Context, Route, helpers;
+2: function (require, module, exports) {
+var helpers;
 
-Context = require(5);
+helpers = exports;
 
-helpers = require(2);
+helpers.noopObj = {};
 
-module.exports = Route = (function() {
-  function Route(path1, segments1, router, _isPassive) {
-    this.path = path1;
-    this.segments = segments1;
-    this.router = router;
-    this._isPassive = _isPassive;
-    this._context = new Context(this);
-    this._enterAction = this._leaveAction = helpers.noop;
-    this._actions = [];
-  }
+helpers.noop = function() {
+  return Promise.resolve();
+};
 
-  Route.prototype.entering = function(fn) {
-    this._enterAction = fn;
-    return this;
-  };
+helpers.currentPath = function() {
+  return helpers.cleanPath(window.location.hash);
+};
 
-  Route.prototype.leaving = function(fn) {
-    this._leaveAction = fn;
-    return this;
-  };
+helpers.removeQuery = function(path) {
+  return path.split('?')[0];
+};
 
-  Route.prototype.to = function(fn) {
-    this._actions.push(fn);
-    return this;
-  };
-
-  Route.prototype.filters = function(filters) {
-    this._dynamicFilters = filters;
-    return this;
-  };
-
-  Route.prototype.passive = function() {
-    if (this._isPassive) {
-      return this;
-    } else if (!this._passiveVersion) {
-      this._passiveVersion = new Route(this.path, this.segments, this.router, true);
-      this.router._hasPassives = true;
+helpers.parseQuery = function(path) {
+  var j, len, pair, pairs, parsed, query, split;
+  query = path.split('?')[1];
+  if (query) {
+    parsed = {};
+    pairs = query.split('&');
+    for (j = 0, len = pairs.length; j < len; j++) {
+      pair = pairs[j];
+      split = pair.split('=');
+      parsed[split[0]] = split[1];
     }
-    return this._passiveVersion;
-  };
+    return parsed;
+  }
+  return helpers.noopObj;
+};
 
-  Route.prototype.remove = function() {
-    return this.router._removeRoute(this);
-  };
+helpers.copyObject = function(source) {
+  var key, target, value;
+  target = {};
+  for (key in source) {
+    value = source[key];
+    target[key] = value;
+  }
+  return target;
+};
 
-  Route.prototype._invokeAction = function(action, relatedPath, relatedRoute) {
-    var result;
-    result = action.call(this._context, relatedPath, relatedRoute);
-    if (result === this.router._pendingRoute) {
-      return null;
+helpers.includes = function(target, item) {
+  return target.indexOf(item) !== -1;
+};
+
+helpers.removeItem = function(target, item) {
+  var itemIndex;
+  itemIndex = target.indexOf(item);
+  target.splice(itemIndex, 1);
+  return target;
+};
+
+
+/* istanbul ignore next */
+
+helpers.logError = function(err) {
+  if (!(err instanceof Error)) {
+    err = new Error(err);
+  }
+  if ((typeof console !== "undefined" && console !== null ? console.error : void 0) != null) {
+    console.error(err);
+  } else if ((typeof console !== "undefined" && console !== null ? console.log : void 0) != null) {
+    console.log(err);
+  }
+};
+
+helpers.applyBase = function(path, base) {
+  if (base && !base.test(path)) {
+    return base.string + "/" + path;
+  }
+  return path;
+};
+
+helpers.removeBase = function(path, base) {
+  if (base && base.test(path)) {
+    path = path.slice(base.length + 1);
+    if (!path.length || path[0] === '?') {
+      path = '/' + path;
+    }
+  }
+  return path;
+};
+
+helpers.cleanPath = function(path) {
+  if (path[0] === '#') {
+    path = path.slice(1);
+  }
+  if (path.length === 0 || path[0] === '?') {
+    path = '/' + path;
+  } else if (path.length > 1) {
+    if (path[0] === '/') {
+      path = path.slice(1);
+    }
+    if (path[path.length - 1] === '/') {
+      path = path.slice(0, -1);
+    }
+  }
+  return path;
+};
+
+helpers.parsePath = function(path) {
+  var addSegment, char, currentSegment, dynamic, i, length, optional, segments;
+  if (path === '/') {
+    return ['/'];
+  }
+  dynamic = optional = false;
+  currentSegment = '';
+  segments = [];
+  length = path.length;
+  i = -1;
+  addSegment = function() {
+    var index;
+    segments.push(currentSegment);
+    index = segments.length - 1;
+    if (dynamic) {
+      if (segments.optional == null) {
+        segments.optional = {};
+      }
+      if (segments.dynamic == null) {
+        segments.dynamic = {
+          length: 0
+        };
+      }
+      segments.dynamic[index] = currentSegment;
+    }
+    if (optional) {
+      segments.optional[index] = currentSegment;
+    }
+    currentSegment = '';
+    return dynamic = optional = false;
+  };
+  while (++i !== length) {
+    switch (char = path[i]) {
+      case '/':
+        addSegment();
+        break;
+      case ':':
+        dynamic = true;
+        break;
+      case '?':
+        optional = true;
+        break;
+      default:
+        currentSegment += char;
+    }
+  }
+  addSegment();
+  return segments;
+};
+
+helpers.pathToRegex = function(pathOrig, openEnded) {
+  var path, regex;
+  path = pathOrig.replace(/\//g, '\\/');
+  regex = "^" + pathOrig;
+  if (!openEnded) {
+    regex += '$';
+  }
+  regex = new RegExp(regex);
+  regex.string = pathOrig;
+  regex.length = pathOrig.length;
+  return regex;
+};
+
+helpers.segmentsToRegex = function(segments) {
+  var index, j, len, path, ref, segment;
+  path = '';
+  for (index = j = 0, len = segments.length; j < len; index = ++j) {
+    segment = segments[index];
+    if ((ref = segments.dynamic) != null ? ref[index] : void 0) {
+      segment = '[^\/]+';
+      if (segments.length === 1) {
+        segment += '$';
+      }
+      if (path) {
+        segment = "/" + segment;
+      }
+      if (segments.optional[index]) {
+        segment = "(?:" + segment + ")?";
+      }
     } else {
-      return result;
-    }
-  };
-
-  Route.prototype._run = function(path, prevRoute, prevPath) {
-    this._isActive = true;
-    this._resolveParams(path);
-    return Promise.resolve(this._invokeAction(this._enterAction, prevPath, prevRoute)).then((function(_this) {
-      return function() {
-        return Promise.all(_this._actions.map(function(action) {
-          return _this._invokeAction(action, prevPath, prevRoute);
-        }));
-      };
-    })(this));
-  };
-
-  Route.prototype._leave = function(newRoute, newPath) {
-    if (this._isActive) {
-      this._isActive = false;
-      return this._invokeAction(this._leaveAction, newPath, newRoute);
-    }
-  };
-
-  Route.prototype._resolveParams = function(path) {
-    var dynamicIndex, ref, segmentName, segments;
-    if (this.segments.dynamic) {
-      path = helpers.removeBase(path, this.router._basePath);
-      segments = path.split('/');
-      ref = this.segments.dynamic;
-      for (dynamicIndex in ref) {
-        segmentName = ref[dynamicIndex];
-        if (dynamicIndex !== 'length') {
-          this._context.params[segmentName] = segments[dynamicIndex] || '';
-        }
+      if (path) {
+        path += '/';
       }
     }
-  };
-
-  Route.prototype.matchesPath = function(target) {
-    var dynamicSegment, i, index, isMatching, len, segment, segments;
-    isMatching = false;
-    if (isMatching = this.path.test(target)) {
-      if (this.segments.dynamic && this._dynamicFilters) {
-        if (!segments) {
-          segments = target.split('/');
-        }
-        for (index = i = 0, len = segments.length; i < len; index = ++i) {
-          segment = segments[index];
-          if (segment !== this.segments[index]) {
-            dynamicSegment = this.segments.dynamic[index];
-            if (isMatching = dynamicSegment != null) {
-              if (this._dynamicFilters[dynamicSegment]) {
-                isMatching = this._dynamicFilters[dynamicSegment](segment);
-              }
-            }
-          }
-          if (!isMatching) {
-            break;
-          }
-        }
-      }
-    }
-    return isMatching;
-  };
-
-  Object.defineProperties(Route.prototype, {
-    'map': {
-      get: function() {
-        return this.router.map.bind(this.router);
-      }
-    },
-    'mapOnce': {
-      get: function() {
-        return this.router.mapOnce.bind(this.router);
-      }
-    },
-    'listen': {
-      get: function() {
-        return this.router.listen.bind(this.router);
-      }
-    }
-  });
-
-  return Route;
-
-})();
-
-;
-return module.exports;
-},
-5: function (require, module, exports) {
-var Context;
-
-module.exports = Context = (function() {
-  function Context(route) {
-    this.route = route;
-    this.segments = this.route.segments;
-    this.path = this.route.path.string;
-    this.params = {};
+    path += segment;
   }
-
-  Context.prototype.remove = function() {
-    return this.route.remove();
-  };
-
-  Context.prototype.redirect = function(path) {
-    this.route.router.go(path, 'redirect');
-    return Promise.resolve();
-  };
-
-  return Context;
-
-})();
+  return helpers.pathToRegex(path);
+};
 
 ;
 return module.exports;
@@ -216,11 +237,11 @@ Router = (function() {
     this.routes.push(route);
     this.routes.sort(function(a, b) {
       var aLength, bLength, ref, ref1, segmentsDiff;
-      segmentsDiff = b.segments.length - a.segments.length;
+      segmentsDiff = a.segments.length - b.segments.length;
       if (!segmentsDiff) {
         aLength = ((ref = a.segments.dynamic) != null ? ref.length : void 0) || 0;
         bLength = ((ref1 = b.segments.dynamic) != null ? ref1.length : void 0) || 0;
-        segmentsDiff = bLength - aLength;
+        segmentsDiff = aLength - bLength;
       }
       return segmentsDiff;
     });
@@ -248,6 +269,7 @@ Router = (function() {
 
   Router.prototype._matchPath = function(path) {
     var i, len, matchingRoute, passiveRoutes, ref, route;
+    path = helpers.removeQuery(path);
     matchingRoute = this._cache[path];
     if (!matchingRoute) {
       ref = this.routes;
@@ -262,7 +284,11 @@ Router = (function() {
               passiveRoutes = [];
             }
             passiveRoutes.push(route._passiveVersion);
-          } else if (!matchingRoute) {
+            if (route._actions.length === 0) {
+              continue;
+            }
+          }
+          if (!matchingRoute) {
             matchingRoute = route;
           }
         } else {
@@ -469,6 +495,34 @@ module.exports = Router;
 ;
 return module.exports;
 },
+5: function (require, module, exports) {
+var Context;
+
+module.exports = Context = (function() {
+  function Context(route) {
+    this.route = route;
+    this.segments = this.route.segments;
+    this.path = this.route.path.string;
+    this.params = {};
+    this.query = {};
+  }
+
+  Context.prototype.remove = function() {
+    return this.route.remove();
+  };
+
+  Context.prototype.redirect = function(path) {
+    this.route.router.go(path, 'redirect');
+    return Promise.resolve();
+  };
+
+  return Context;
+
+})();
+
+;
+return module.exports;
+},
 0: function (require, module, exports) {
 var Router, Routing, helpers;
 
@@ -573,7 +627,7 @@ Routing = new function() {
     routers.push(routerInstance = new Router(timeout, ++currentID));
     return routerInstance;
   };
-  this.version = "1.1.0-b";
+  this.version = "1.1.0";
   return this;
 };
 
@@ -582,176 +636,154 @@ module.exports = Routing;
 ;
 return module.exports;
 },
-2: function (require, module, exports) {
-var helpers;
+4: function (require, module, exports) {
+var Context, Route, helpers;
 
-module.exports = helpers = {};
+Context = require(5);
 
-helpers.noop = function() {
-  return Promise.resolve();
-};
+helpers = require(2);
 
-helpers.currentPath = function() {
-  return helpers.cleanPath(window.location.hash);
-};
-
-helpers.copyObject = function(source) {
-  var key, target, value;
-  target = {};
-  for (key in source) {
-    value = source[key];
-    target[key] = value;
+module.exports = Route = (function() {
+  function Route(path1, segments1, router, _isPassive) {
+    this.path = path1;
+    this.segments = segments1;
+    this.router = router;
+    this._isPassive = _isPassive;
+    this._context = new Context(this);
+    this._enterAction = this._leaveAction = helpers.noop;
+    this._actions = [];
   }
-  return target;
-};
 
-helpers.includes = function(target, item) {
-  return target.indexOf(item) !== -1;
-};
-
-helpers.removeItem = function(target, item) {
-  var itemIndex;
-  itemIndex = target.indexOf(item);
-  target.splice(itemIndex, 1);
-  return target;
-};
-
-
-/* istanbul ignore next */
-
-helpers.logError = function(err) {
-  if (!(err instanceof Error)) {
-    err = new Error(err);
-  }
-  if ((typeof console !== "undefined" && console !== null ? console.error : void 0) != null) {
-    console.error(err);
-  } else if ((typeof console !== "undefined" && console !== null ? console.log : void 0) != null) {
-    console.log(err);
-  }
-};
-
-helpers.applyBase = function(path, base) {
-  if (base && !base.test(path)) {
-    return base.string + "/" + path;
-  }
-  return path;
-};
-
-helpers.removeBase = function(path, base) {
-  if (base && base.test(path)) {
-    path = path.slice(base.length + 1);
-    if (!path.length) {
-      path = '/';
-    }
-  }
-  return path;
-};
-
-helpers.cleanPath = function(path) {
-  if (path[0] === '#') {
-    path = path.slice(1);
-  }
-  if (path.length === 0) {
-    path = '/';
-  } else if (path.length > 1) {
-    if (path[0] === '/') {
-      path = path.slice(1);
-    }
-    if (path[path.length - 1] === '/') {
-      path = path.slice(0, -1);
-    }
-  }
-  return path;
-};
-
-helpers.parsePath = function(path) {
-  var addSegment, char, currentSegment, dynamic, i, length, optional, segments;
-  if (path === '/') {
-    return ['/'];
-  }
-  dynamic = optional = false;
-  currentSegment = '';
-  segments = [];
-  length = path.length;
-  i = -1;
-  addSegment = function() {
-    var index;
-    segments.push(currentSegment);
-    index = segments.length - 1;
-    if (dynamic) {
-      if (segments.optional == null) {
-        segments.optional = {};
-      }
-      if (segments.dynamic == null) {
-        segments.dynamic = {
-          length: 0
-        };
-      }
-      segments.dynamic[index] = currentSegment;
-    }
-    if (optional) {
-      segments.optional[index] = currentSegment;
-    }
-    currentSegment = '';
-    return dynamic = optional = false;
+  Route.prototype.entering = function(fn) {
+    this._enterAction = fn;
+    return this;
   };
-  while (++i !== length) {
-    switch (char = path[i]) {
-      case '/':
-        addSegment();
-        break;
-      case ':':
-        dynamic = true;
-        break;
-      case '?':
-        optional = true;
-        break;
-      default:
-        currentSegment += char;
+
+  Route.prototype.leaving = function(fn) {
+    this._leaveAction = fn;
+    return this;
+  };
+
+  Route.prototype.to = function(fn) {
+    this._actions.push(fn);
+    return this;
+  };
+
+  Route.prototype.filters = function(filters) {
+    this._dynamicFilters = filters;
+    return this;
+  };
+
+  Route.prototype.passive = function() {
+    if (this._isPassive) {
+      return this;
+    } else if (!this._passiveVersion) {
+      this._passiveVersion = new Route(this.path, this.segments, this.router, true);
+      this.router._hasPassives = true;
     }
-  }
-  addSegment();
-  return segments;
-};
+    return this._passiveVersion;
+  };
 
-helpers.pathToRegex = function(pathOrig, openEnded) {
-  var path, regex;
-  path = pathOrig.replace(/\//g, '\\/');
-  regex = "^" + pathOrig;
-  if (!openEnded) {
-    regex += '$';
-  }
-  regex = new RegExp(regex);
-  regex.string = pathOrig;
-  regex.length = pathOrig.length;
-  return regex;
-};
+  Route.prototype.remove = function() {
+    return this.router._removeRoute(this);
+  };
 
-helpers.segmentsToRegex = function(segments) {
-  var index, j, len, path, ref, segment;
-  path = '';
-  for (index = j = 0, len = segments.length; j < len; index = ++j) {
-    segment = segments[index];
-    if ((ref = segments.dynamic) != null ? ref[index] : void 0) {
-      segment = '[^\/]+';
-      if (segments.length === 1) {
-        segment += '$';
-      }
-      if (path) {
-        segment = "/" + segment;
-      }
-      if (segments.optional[index]) {
-        segment = "(?:" + segment + ")?";
-      }
+  Route.prototype._invokeAction = function(action, relatedPath, relatedRoute) {
+    var result;
+    result = action.call(this._context, relatedPath, relatedRoute);
+    if (result === this.router._pendingRoute) {
+      return null;
     } else {
-      if (path) {
-        path += '/';
+      return result;
+    }
+  };
+
+  Route.prototype._run = function(path, prevRoute, prevPath) {
+    this._isActive = true;
+    this._context.params = this._resolveParams(path);
+    this._context.query = helpers.parseQuery(path);
+    return Promise.resolve(this._invokeAction(this._enterAction, prevPath, prevRoute)).then((function(_this) {
+      return function() {
+        return Promise.all(_this._actions.map(function(action) {
+          return _this._invokeAction(action, prevPath, prevRoute);
+        }));
+      };
+    })(this));
+  };
+
+  Route.prototype._leave = function(newRoute, newPath) {
+    if (this._isActive) {
+      this._isActive = false;
+      return this._invokeAction(this._leaveAction, newPath, newRoute);
+    }
+  };
+
+  Route.prototype._resolveParams = function(path) {
+    var dynamicIndex, params, ref, segmentName, segments;
+    if (!this.segments.dynamic) {
+      return helpers.noopObj;
+    }
+    path = helpers.removeQuery(helpers.removeBase(path, this.router._basePath));
+    segments = path.split('/');
+    params = {};
+    ref = this.segments.dynamic;
+    for (dynamicIndex in ref) {
+      segmentName = ref[dynamicIndex];
+      if (dynamicIndex !== 'length') {
+        params[segmentName] = segments[dynamicIndex] || '';
       }
     }
-    path += segment;
-  }
-  return helpers.pathToRegex(path);
-};
+    return params;
+  };
+
+  Route.prototype.matchesPath = function(target) {
+    var dynamicSegment, i, index, isMatching, len, segment, segments;
+    isMatching = false;
+    if (isMatching = this.path.test(target)) {
+      if (this.segments.dynamic && this._dynamicFilters) {
+        if (!segments) {
+          segments = target.split('/');
+        }
+        for (index = i = 0, len = segments.length; i < len; index = ++i) {
+          segment = segments[index];
+          if (segment !== this.segments[index]) {
+            dynamicSegment = this.segments.dynamic[index];
+            if (isMatching = dynamicSegment != null) {
+              if (this._dynamicFilters[dynamicSegment]) {
+                isMatching = this._dynamicFilters[dynamicSegment](segment);
+              }
+            }
+          }
+          if (!isMatching) {
+            break;
+          }
+        }
+      }
+    }
+    return isMatching;
+  };
+
+  Object.defineProperties(Route.prototype, {
+    'map': {
+      get: function() {
+        return this.router.map.bind(this.router);
+      }
+    },
+    'mapOnce': {
+      get: function() {
+        return this.router.mapOnce.bind(this.router);
+      }
+    },
+    'listen': {
+      get: function() {
+        return this.router.listen.bind(this.router);
+      }
+    }
+  });
+
+  return Route;
+
+})();
 
 ;
 return module.exports;
