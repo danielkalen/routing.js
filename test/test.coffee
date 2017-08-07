@@ -10,6 +10,7 @@ Promise.config longStackTraces:false
 
 
 setHash = (targetHash, delay=1)-> new Promise (resolve)->
+	return resolve() if getHash() is getHash(targetHash)
 	targetHash = getHash(targetHash)
 	handler = ()->
 		window.removeEventListener('hashchange', handler)
@@ -740,6 +741,42 @@ suite "Routing.JS", ()->
 					expect(userArgs.route).to.equal(userRoute)
 					expect(adminArgs.path).to.equal('user/3')
 					expect(adminArgs.route).to.equal(userRoute)
+
+
+		test "routes can have multiple actions", ()->
+			router = Routing.Router()
+			count = a:0, b:0, c:0, d:0
+			
+			Promise.resolve()
+				.then ()->
+					router
+						.map('/abc')
+						.map('/def')
+							.to ()-> count.a++
+							.to ()-> count.b++
+							.entering ()-> count.c++
+							.to ()-> count.d++
+						.listen('/abc')
+
+				.then ()->
+					expect(count).to.eql a:0, b:0, c:0, d:0
+					setHash('def')
+
+				.then ()->
+					expect(count).to.eql a:1, b:1, c:1, d:1
+					setHash('/def')
+
+				.then ()->
+					expect(count).to.eql a:1, b:1, c:1, d:1
+					setHash('/abc')
+
+				.then ()->
+					expect(count).to.eql a:1, b:1, c:1, d:1
+					router.back()
+
+				.then ()->
+					expect(count).to.eql a:2, b:2, c:2, d:2
+
 
 
 
