@@ -46,22 +46,29 @@ module.exports = class Route
 
 	_run: (path, prevRoute, prevPath)->
 		@_isActive = true
-		@_resolveParams(path)
+		@_context.params = @_resolveParams(path)
+		@_context.query = helpers.parseQuery(path)
+
 		Promise.resolve(@_invokeAction(@_enterAction, prevPath, prevRoute))
 			.then ()=> Promise.all @_actions.map (action)=> @_invokeAction(action, prevPath, prevRoute)
 
+	
 	_leave: (newRoute, newPath)-> if @_isActive
 		@_isActive = false
 		@_invokeAction(@_leaveAction, newPath, newRoute)
 
-	_resolveParams: (path)-> if @segments.dynamic
-		path = helpers.removeBase(path, @router._basePath)
+
+	_resolveParams: (path)->
+		return helpers.noopObj if not @segments.dynamic
+		path = helpers.removeQuery helpers.removeBase(path, @router._basePath)
 		segments = path.split('/')
+		params = {}
 		
 		for dynamicIndex,segmentName of @segments.dynamic when dynamicIndex isnt 'length'
-			@_context.params[segmentName] = segments[dynamicIndex] or ''
+			params[segmentName] = segments[dynamicIndex] or ''
 
-		return
+		return params
+
 
 	matchesPath: (target)->
 		isMatching = false

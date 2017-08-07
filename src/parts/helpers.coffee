@@ -1,9 +1,33 @@
-module.exports = helpers = {}
+helpers = exports
+
+helpers.noopObj = {}
 
 helpers.noop = ()-> Promise.resolve()
 
 helpers.currentPath = ()->
 	helpers.cleanPath(window.location.hash)
+
+# helpers.currentQuery = ()->
+# 	helpers.parseQuery(window.location.hash)
+
+helpers.removeQuery = (path)->
+	path.split('?')[0]
+
+helpers.parseQuery = (path)->
+	query = path.split('?')[1]
+	
+	if query
+		parsed = {}
+		pairs = query.split('&')
+		
+		for pair in pairs
+			split = pair.split('=')
+			parsed[split[0]] = split[1]
+
+		return parsed
+
+	return helpers.noopObj
+
 
 helpers.copyObject = (source)->
 	target = {}
@@ -38,15 +62,15 @@ helpers.applyBase = (path, base)->
 helpers.removeBase = (path, base)->
 	if base and base.test(path)
 		path = path.slice(base.length+1)
-		path = '/' if not path.length
+		path = '/'+path if not path.length or path[0] is '?'
 
 	return path
 
 
 helpers.cleanPath = (path)->
 	path = path.slice(1) if path[0] is '#'
-	if path.length is 0
-		path = '/'
+	if path.length is 0 or path[0] is '?'
+		path = '/'+path
 	
 	else if path.length > 1
 		path = path.slice(1) if path[0] is '/'

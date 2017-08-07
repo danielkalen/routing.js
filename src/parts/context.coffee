@@ -3,6 +3,7 @@ module.exports = class Context
 		@segments = @route.segments
 		@path = @route.path.string
 		@params = {}
+		@query = {}
 	
 	remove: ()->
 		@route.remove()

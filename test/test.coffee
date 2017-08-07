@@ -188,7 +188,7 @@ suite "Routing.JS", ()->
 					expect(context.params.name).to.equal ''
 					expect(context.params.page).to.equal ''
 					expect(invokeCount).to.equal 6
-								
+
 
 		test "a route can start with a dynamic segment", ()->
 			Router = Routing.Router()
@@ -221,6 +221,244 @@ suite "Routing.JS", ()->
 					expect(context.params.page).to.equal 'settings'
 
 
+	suite "query", ()->
+		test "parsed query params are accessible via this.query in route actions", ()->
+			count = {}
+			query = {}
+			router = Routing.Router()
+			register = (path)->
+				count[path] = 0; query[path] = null;
+				router.map(path).to ()-> count[path]++; query[path] = @query
+
+			Promise.resolve()
+				.then ()->
+					register '/'
+					register '/abc'
+					register '/def'
+					router.listen()
+
+				.delay()
+				.then ()->
+					expect(count).to.eql '/':1, '/abc':0, '/def':0
+					expect(query).to.eql '/':{}, '/abc':null, '/def':null
+					setHash('/abc?item=23&name=product')
+				
+				.then ()->
+					expect(count).to.eql '/':1, '/abc':1, '/def':0
+					expect(query).to.eql '/':{}, '/abc':{item:'23',name:'product'}, '/def':null
+					setHash('?item=45&key=value')
+				
+				.then ()->
+					expect(count).to.eql '/':2, '/abc':1, '/def':0
+					expect(query).to.eql '/':{item:'45', key:'value'}, '/abc':{item:'23',name:'product'}, '/def':null
+
+
+		test "the route's action will trigger every time the query string changes", ()->
+			count = {}
+			query = {}
+			router = Routing.Router()
+			register = (path)->
+				count[path] = 0; query[path] = null;
+				router.map(path).to ()-> count[path]++; query[path] = @query
+
+			Promise.resolve()
+				.then ()->
+					register '/'
+					register '/abc'
+					register '/def'
+					router.listen()
+
+				.delay()
+				.then ()->
+					expect(count).to.eql '/':1, '/abc':0, '/def':0
+					expect(query).to.eql '/':{}, '/abc':null, '/def':null
+					setHash('/abc?item=23&name=product')
+				
+				.then ()->
+					expect(count).to.eql '/':1, '/abc':1, '/def':0
+					expect(query).to.eql '/':{}, '/abc':{item:'23',name:'product'}, '/def':null
+					setHash('/abc?item=45&key=value')
+				
+				.then ()->
+					expect(count).to.eql '/':1, '/abc':2, '/def':0
+					expect(query).to.eql '/':{}, '/abc':{item:'45', key:'value'}, '/def':null
+					setHash('/def?')
+				
+				.then ()->
+					expect(count).to.eql '/':1, '/abc':2, '/def':1
+					expect(query).to.eql '/':{}, '/abc':{item:'45', key:'value'}, '/def':{}
+					setHash('/def?size=large&name=king&size=small')
+				
+				.then ()->
+					expect(count).to.eql '/':1, '/abc':2, '/def':2
+					expect(query).to.eql '/':{}, '/abc':{item:'45', key:'value'}, '/def':{size:'small',name:'king'}
+
+
+		test "will work with path params", ()->
+			count = {}
+			query = {}
+			params = {}
+			router = Routing.Router()
+			register = (path)->
+				count[path] = 0; query[path] = null; params[path] = null;
+				router.map(path).to ()-> count[path]++; query[path] = @query; params[path] = @params
+
+			Promise.resolve()
+				.then ()->
+					register '/abc'
+					register '/abc/:param'
+					register '/def/:param?'
+					router.listen()
+
+				.delay()
+				.then ()->
+					expect(count).to.eql '/abc':0, '/abc/:param':0, '/def/:param?':0
+					expect(query).to.eql '/abc':null, '/abc/:param':null, '/def/:param?':null
+					expect(params).to.eql '/abc':null, '/abc/:param':null, '/def/:param?':null
+					setHash('/abc?a=1&b=2&c=3')
+				
+				.then ()->
+					expect(count).to.eql '/abc':1, '/abc/:param':0, '/def/:param?':0
+					expect(query).to.eql '/abc':{a:'1',b:'2',c:'3'}, '/abc/:param':null, '/def/:param?':null
+					expect(params).to.eql '/abc':{}, '/abc/:param':null, '/def/:param?':null
+					setHash('/abc/blabla')
+				
+				.then ()->
+					expect(count).to.eql '/abc':1, '/abc/:param':1, '/def/:param?':0
+					expect(query).to.eql '/abc':{a:'1',b:'2',c:'3'}, '/abc/:param':{}, '/def/:param?':null
+					expect(params).to.eql '/abc':{}, '/abc/:param':{param:'blabla'}, '/def/:param?':null
+					setHash('/abc/blabla?d=4&e=5')
+				
+				.then ()->
+					expect(count).to.eql '/abc':1, '/abc/:param':2, '/def/:param?':0
+					expect(query).to.eql '/abc':{a:'1',b:'2',c:'3'}, '/abc/:param':{d:'4',e:'5'}, '/def/:param?':null
+					expect(params).to.eql '/abc':{}, '/abc/:param':{param:'blabla'}, '/def/:param?':null
+					setHash('/def?d=4&e=5')
+				
+				.then ()->
+					expect(count).to.eql '/abc':1, '/abc/:param':2, '/def/:param?':1
+					expect(query).to.eql '/abc':{a:'1',b:'2',c:'3'}, '/abc/:param':{d:'4',e:'5'}, '/def/:param?':{d:'4',e:'5'}
+					expect(params).to.eql '/abc':{}, '/abc/:param':{param:'blabla'}, '/def/:param?':{param:''}
+					setHash('/def/orem?d=4&e=5')
+				
+				.then ()->
+					expect(count).to.eql '/abc':1, '/abc/:param':2, '/def/:param?':2
+					expect(query).to.eql '/abc':{a:'1',b:'2',c:'3'}, '/abc/:param':{d:'4',e:'5'}, '/def/:param?':{d:'4',e:'5'}
+					expect(params).to.eql '/abc':{}, '/abc/:param':{param:'blabla'}, '/def/:param?':{param:'orem'}
+					setHash('/def/orem?f=6&g=7')
+				
+				.then ()->
+					expect(count).to.eql '/abc':1, '/abc/:param':2, '/def/:param?':3
+					expect(query).to.eql '/abc':{a:'1',b:'2',c:'3'}, '/abc/:param':{d:'4',e:'5'}, '/def/:param?':{f:'6',g:'7'}
+					expect(params).to.eql '/abc':{}, '/abc/:param':{param:'blabla'}, '/def/:param?':{param:'orem'}
+
+
+		test "will work with base path", ()->
+			count = {}
+			query = {}
+			params = {}
+			router = Routing.Router().base('theBase/2/')
+			register = (path)->
+				count[path] = 0; query[path] = null; params[path] = null;
+				router.map(path).to ()-> count[path]++; query[path] = @query; params[path] = @params
+
+			Promise.resolve()
+				.then ()->
+					register '/abc'
+					register '/abc/:param'
+					register '/def/:param?'
+					router.listen()
+
+				.delay()
+				.then ()->
+					expect(count).to.eql '/abc':0, '/abc/:param':0, '/def/:param?':0
+					expect(query).to.eql '/abc':null, '/abc/:param':null, '/def/:param?':null
+					expect(params).to.eql '/abc':null, '/abc/:param':null, '/def/:param?':null
+					setHash('/theBase/2/abc?a=1&b=2&c=3')
+				
+				.then ()->
+					expect(count).to.eql '/abc':1, '/abc/:param':0, '/def/:param?':0
+					expect(query).to.eql '/abc':{a:'1',b:'2',c:'3'}, '/abc/:param':null, '/def/:param?':null
+					expect(params).to.eql '/abc':{}, '/abc/:param':null, '/def/:param?':null
+					setHash('/theBase/2/abc/blabla')
+				
+				.then ()->
+					expect(count).to.eql '/abc':1, '/abc/:param':1, '/def/:param?':0
+					expect(query).to.eql '/abc':{a:'1',b:'2',c:'3'}, '/abc/:param':{}, '/def/:param?':null
+					expect(params).to.eql '/abc':{}, '/abc/:param':{param:'blabla'}, '/def/:param?':null
+					setHash('/theBase/2/abc/blabla?d=4&e=5')
+				
+				.then ()->
+					expect(count).to.eql '/abc':1, '/abc/:param':2, '/def/:param?':0
+					expect(query).to.eql '/abc':{a:'1',b:'2',c:'3'}, '/abc/:param':{d:'4',e:'5'}, '/def/:param?':null
+					expect(params).to.eql '/abc':{}, '/abc/:param':{param:'blabla'}, '/def/:param?':null
+					setHash('/theBase/2/def?d=4&e=5')
+				
+				.then ()->
+					expect(count).to.eql '/abc':1, '/abc/:param':2, '/def/:param?':1
+					expect(query).to.eql '/abc':{a:'1',b:'2',c:'3'}, '/abc/:param':{d:'4',e:'5'}, '/def/:param?':{d:'4',e:'5'}
+					expect(params).to.eql '/abc':{}, '/abc/:param':{param:'blabla'}, '/def/:param?':{param:''}
+					setHash('/theBase/2/def/orem?d=4&e=5')
+				
+				.then ()->
+					expect(count).to.eql '/abc':1, '/abc/:param':2, '/def/:param?':2
+					expect(query).to.eql '/abc':{a:'1',b:'2',c:'3'}, '/abc/:param':{d:'4',e:'5'}, '/def/:param?':{d:'4',e:'5'}
+					expect(params).to.eql '/abc':{}, '/abc/:param':{param:'blabla'}, '/def/:param?':{param:'orem'}
+					setHash('/theBase/2/def/orem?f=6&g=7')
+				
+				.then ()->
+					expect(count).to.eql '/abc':1, '/abc/:param':2, '/def/:param?':3
+					expect(query).to.eql '/abc':{a:'1',b:'2',c:'3'}, '/abc/:param':{d:'4',e:'5'}, '/def/:param?':{f:'6',g:'7'}
+					expect(params).to.eql '/abc':{}, '/abc/:param':{param:'blabla'}, '/def/:param?':{param:'orem'}
+
+
+		test "will work with passive routes", ()->
+			count = {}
+			query = {}
+			params = {}
+			router = Routing.Router()
+			register = (path,passive)->
+				target = if passive then "#{path}-passive" else path
+				route = if passive then router.map(path).passive() else router.map(path)
+				count[target] = 0; query[target] = null; params[target] = null;
+				route.to ()-> count[target]++; query[target] = @query; params[target] = @params
+
+			Promise.resolve()
+				.then ()->
+					register '/abc',true
+					register '/def/:param?'
+					register '/def/:param?',true
+					router.listen()
+
+				.delay()
+				.then ()->
+					expect(count).to.eql '/abc-passive':0, '/def/:param?':0, '/def/:param?-passive':0
+					expect(query).to.eql '/abc-passive':null, '/def/:param?':null, '/def/:param?-passive':null
+					expect(params).to.eql '/abc-passive':null, '/def/:param?':null, '/def/:param?-passive':null
+					setHash('/abc?a=1')
+				
+				.then ()->
+					expect(count).to.eql '/abc-passive':1, '/def/:param?':0, '/def/:param?-passive':0
+					expect(query).to.eql '/abc-passive':{a:'1'}, '/def/:param?':null, '/def/:param?-passive':null
+					expect(params).to.eql '/abc-passive':{}, '/def/:param?':null, '/def/:param?-passive':null
+					setHash('/abc?a=2')
+				
+				.then ()->
+					expect(count).to.eql '/abc-passive':2, '/def/:param?':0, '/def/:param?-passive':0
+					expect(query).to.eql '/abc-passive':{a:'2'}, '/def/:param?':null, '/def/:param?-passive':null
+					expect(params).to.eql '/abc-passive':{}, '/def/:param?':null, '/def/:param?-passive':null
+					setHash('/def/kale?b=2')
+				
+				.then ()->
+					expect(count).to.eql '/abc-passive':2, '/def/:param?':1, '/def/:param?-passive':1
+					expect(query).to.eql '/abc-passive':{a:'2'}, '/def/:param?':{b:'2'}, '/def/:param?-passive':{b:'2'}
+					expect(params).to.eql '/abc-passive':{}, '/def/:param?':{param:'kale'}, '/def/:param?-passive':{param:'kale'}
+					setHash('/def/kale?b=2&c=3')
+				
+				.then ()->
+					expect(count).to.eql '/abc-passive':2, '/def/:param?':2, '/def/:param?-passive':2
+					expect(query).to.eql '/abc-passive':{a:'2'}, '/def/:param?':{b:'2',c:'3'}, '/def/:param?-passive':{b:'2',c:'3'}
+					expect(params).to.eql '/abc-passive':{}, '/def/:param?':{param:'kale'}, '/def/:param?-passive':{param:'kale'}
 
 
 
@@ -362,7 +600,7 @@ suite "Routing.JS", ()->
 					expect(invokeCount.abc123).to.equal 2
 					expect(invokeCount.def456).to.equal 1
 					expect(invokeCount.after).to.equal 1
-		
+
 
 		test "router.beforeAll/afterAll() can take a function which will be executed before/after all route changes", ()->
 			invokeCount = before:0, after:0, beforeB:0
@@ -1212,6 +1450,7 @@ suite "Routing.JS", ()->
 
 				.delay()
 				.then ()->
+					# console.log Router.routes.map (p)-> p.path.string
 					expect(invokeCount, 'def').to.eql aA:0, aB:0, pA:0, pB:0, pC:0, lA:0, lD:0, eD:0
 					expect(Router._history.length).to.equal 0
 					expect(getHash()).to.equal 'def'
@@ -1253,39 +1492,40 @@ suite "Routing.JS", ()->
 			expect(router.map('/abc').passive(), "passive = passive").to.equal(router.map('/abc').passive())
 			expect(router.map('/abc').passive(), "passive = passive.passive").to.equal(router.map('/abc').passive().passive())
 			expect(router.map('/abc'), "non-passive != passive").not.to.equal(router.map('/abc').passive())
-			invokeCount = entering:0, to:0, leaving:0
+			invokeCount = entering:0, to:0, leaving:0, real:0
 			
 			Promise.resolve()
 				.then ()->
-					router.map('/def').passive()
-						.entering ()-> invokeCount.entering++
-						.to ()-> invokeCount.to++
-						.leaving ()-> invokeCount.leaving++
+					router
+						.map('/abc').to ()-> ;
+						.map('/def').passive()
+							.entering ()-> invokeCount.entering++
+							.to ()-> invokeCount.to++
+							.leaving ()-> invokeCount.leaving++
+						.map('/def')
+							.to ()-> invokeCount.real++
 					
-					router.priority(0).listen()
+					router.listen()
 
 				.delay()
 				.then ()->
-					expect(invokeCount).to.eql entering:0, to:0, leaving:0
+					expect(invokeCount).to.eql entering:0, to:0, leaving:0, real:0
 					setHash('abc')
 
 				.then ()->
-					expect(invokeCount).to.eql entering:0, to:0, leaving:0
+					expect(invokeCount).to.eql entering:0, to:0, leaving:0, real:0
 					setHash('def')
 
 				.then ()->
-					expect(invokeCount).to.eql entering:1, to:1, leaving:0
+					expect(invokeCount).to.eql entering:1, to:1, leaving:0, real:1
 					setHash('abc')
 
 				.then ()->
-					expect(invokeCount).to.eql entering:1, to:1, leaving:1
+					expect(invokeCount).to.eql entering:1, to:1, leaving:1, real:1
 					setHash('def')
 
 				.then ()->
-					expect(invokeCount).to.eql entering:2, to:2, leaving:1
-
-
-	# suite "query strings", ()->
+					expect(invokeCount).to.eql entering:2, to:2, leaving:1, real:2
 
 
 

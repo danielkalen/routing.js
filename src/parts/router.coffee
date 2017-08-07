@@ -21,11 +21,11 @@ class Router
 	_addRoute: (route)->
 		@routes.push(route)
 		@routes.sort (a,b)->
-			segmentsDiff = b.segments.length - a.segments.length
+			segmentsDiff = a.segments.length - b.segments.length
 			if not segmentsDiff
 				aLength = a.segments.dynamic?.length or 0
 				bLength = b.segments.dynamic?.length or 0
-				segmentsDiff = bLength - aLength
+				segmentsDiff = aLength - bLength
 
 			return segmentsDiff
 
@@ -45,18 +45,20 @@ class Router
 
 
 	_matchPath: (path)->
+		path = helpers.removeQuery(path)
 		matchingRoute = @_cache[path]
 
 		if not matchingRoute
 			for route in @routes
 				continue if not route.matchesPath(path)
-				
+
 				if @_hasPassives
 					if route._passiveVersion
 						passiveRoutes = [] if not passiveRoutes
 						passiveRoutes.push route._passiveVersion
-					else if not matchingRoute
-						matchingRoute = route
+						continue if route._actions.length is 0
+
+					matchingRoute = route if not matchingRoute
 				else
 					matchingRoute = route
 					break
