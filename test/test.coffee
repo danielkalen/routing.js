@@ -7,25 +7,36 @@ mocha.slow(700)
 mocha.bail() unless window.__karma__
 {expect} = chai
 Promise.config longStackTraces:false, warnings:false
+runAfterDelay = setTimeout
 
-
-setHash = (targetHash, delay=4)-> new Promise (resolve)->
-	return resolve() if getHash() is getHash(targetHash)
-	targetHash = getHash(targetHash)
-	handler = ()->
-		window.removeEventListener('hashchange', handler)
-		if delay then Promise.delay(delay).then(resolve) else resolve()
-	window.addEventListener('hashchange', handler)
-	window.location.hash = targetHash
 
 getHash = (hash=window.location.hash)->
 	hash.replace /^#?\/?/, ''
+
+setHash = (targetHash, delay=4, extra={})-> new Promise (resolve)->
+	return resolve() if getHash() is getHash(targetHash)
+	targetHash = getHash(targetHash)
+	{clock, router} = extra
+	
+	handler = ()->
+		window.removeEventListener('hashchange', handler)
+		Promise.resolve()
+			.then ()-> if router then (router._pendingRoute or router._P)
+			.catch ()-> ;
+			.finally ()-> if delay then runAfterDelay(resolve, delay) else resolve()
+		if clock then clock.tick(delay)
+	
+	window.addEventListener('hashchange', handler)
+	window.location.hash = targetHash
+
+
+
 
 
 suite "Routing.JS", ()->
 	teardown ()-> window.location.hash = ''; Routing.killAll()
 
-	test "routing.Router() will return a new router instance", ()->
+	test "Routing.Router() will return a new router instance", ()->
 		routerA = Routing.Router()
 		routerB = Routing.Router()
 		expect(routerA).not.to.equal(routerB)
@@ -34,18 +45,18 @@ suite "Routing.JS", ()->
 
 
 	test "router.map() should accept a path and return a cachable Route instance", ()->
-		Router = Routing.Router()
-		routeA = Router.map('/abc')
-		routeB = Router.map('/abc')
+		router = Routing.Router()
+		routeA = router.map('/abc')
+		routeB = router.map('/abc')
 		expect(routeA).to.equal(routeB)
 
 
 	test "a route can be specified with or without forward/backward slashes", ()->
-		Router = Routing.Router()
-		routeA = Router.map('/abc/')
-		routeB = Router.map('/abc')
-		routeC = Router.map('abc')
-		routeD = Router.map('abc/')
+		router = Routing.Router()
+		routeA = router.map('/abc/')
+		routeB = router.map('/abc')
+		routeC = router.map('abc')
+		routeD = router.map('abc/')
 		
 		expect(routeA).to.equal(routeB)
 		expect(routeB).to.equal(routeC)
@@ -53,12 +64,12 @@ suite "Routing.JS", ()->
 
 
 	test "a route can be mapped to invoke a specific function on hash change", ()->
-		Router = Routing.Router()
+		router = Routing.Router()
 		invokeCount = {'/':0, '/test':0, '/another':0}
 		
 		Promise.resolve()
 			.then ()->
-				Router
+				router
 					.map('/').to ()-> invokeCount['/']++
 					.map('/test').to ()-> invokeCount['/test']++
 					.map('/another').to ()-> invokeCount['/another']++
@@ -90,14 +101,14 @@ suite "Routing.JS", ()->
 
 
 	test "route functions will be invoked within a dedicated context", ()->
-		Router = Routing.Router()
+		router = Routing.Router()
 		invokeCount = 0
 		prevContext = null
 
 		Promise.resolve()
 			.then ()->
-				Router.map('/another')
-				Router.map('/test/path').to ()->
+				router.map('/another')
+				router.map('/test/path').to ()->
 					invokeCount++
 					expect(@constructor).not.to.equal Object
 					expect(@params).to.eql {}
@@ -111,7 +122,7 @@ suite "Routing.JS", ()->
 					@persistent = 'yes'
 					prevContext = @
 		
-				Router.listen()
+				router.listen()
 			.delay()
 			.then ()->
 				expect(invokeCount).to.equal 0
@@ -131,15 +142,15 @@ suite "Routing.JS", ()->
 
 	suite "params", ()->
 		test "a route can have dynamic segments which will be available with resolved values in this.params", ()->
-			Router = Routing.Router()
+			router = Routing.Router()
 			invokeCount = 0
 			context = null
 
 			Promise.resolve()
 				.then ()->
-					Router.map('/user/:ID/:page').to ()-> invokeCount++; context = @
-					Router.map('/admin/:ID/:name?/:page?').to ()-> invokeCount++; context = @
-					Router.listen()
+					router.map('/user/:ID/:page').to ()-> invokeCount++; context = @
+					router.map('/admin/:ID/:name?/:page?').to ()-> invokeCount++; context = @
+					router.listen()
 
 				.delay()
 				.then ()->
@@ -192,14 +203,14 @@ suite "Routing.JS", ()->
 
 
 		test "a route can start with a dynamic segment", ()->
-			Router = Routing.Router()
+			router = Routing.Router()
 			invokeCount = 0
 			context = null
 
 			Promise.resolve()
 				.then ()->
-					Router.map('/:page').to ()-> invokeCount++; context = @
-					Router.listen()
+					router.map('/:page').to ()-> invokeCount++; context = @
+					router.listen()
 
 				.delay()
 				.then ()->
@@ -465,17 +476,17 @@ suite "Routing.JS", ()->
 
 	suite "actions", ()->
 		test "a route can be mapped to an entering function which will be invoked when entering the route (before regular action)", ()->
-			Router = Routing.Router()
+			router = Routing.Router()
 			invokeCount = before:0, reg:0
 
 			Promise.resolve()
 				.then ()->
-					Router.map('/def456')
-					Router.map('/abc123')
+					router.map('/def456')
+					router.map('/abc123')
 						.entering ()-> invokeCount.before++; expect(invokeCount.before - invokeCount.reg).to.equal(1)
 						.to ()-> invokeCount.reg++
 
-					Router.listen()
+					router.listen()
 
 				.delay()
 				.then ()->
@@ -498,17 +509,17 @@ suite "Routing.JS", ()->
 
 
 		test "a route can be mapped to a leaving function which will be invoked when leaving the route", ()->
-			Router = Routing.Router()
+			router = Routing.Router()
 			invokeCount = after:0, reg:0
 
 			Promise.resolve()
 				.then ()->
-					Router.map('/def456')
-					Router.map('/abc123')
+					router.map('/def456')
+					router.map('/abc123')
 						.to ()-> invokeCount.reg++
 						.leaving ()-> invokeCount.after++
 
-					Router.listen()
+					router.listen()
 
 				.delay()
 				.then ()->
@@ -532,7 +543,7 @@ suite "Routing.JS", ()->
 
 
 		test "route actions can return a promise which will be waited to be resolved before continuing", ()->
-			Router = Routing.Router()
+			router = Routing.Router()
 			invokeCount = before:0, after:0, abc123:0, def456:0
 			delays = before:null, abc123:null, after:null
 			initDelays = ()->
@@ -543,15 +554,15 @@ suite "Routing.JS", ()->
 
 			Promise.resolve()
 				.then ()->
-					Router.map('/abc123')
+					router.map('/abc123')
 						.entering ()-> invokeCount.before++; delays.before
 						.to ()-> invokeCount.abc123++; delays.abc123
 			
-					Router.map('/def456')
+					router.map('/def456')
 						.to ()-> invokeCount.def456++;
 						.leaving ()-> invokeCount.after++; delays.after
 
-					Router.listen()
+					router.listen()
 					initDelays()
 
 				.delay()
@@ -606,11 +617,11 @@ suite "Routing.JS", ()->
 		test "router.beforeAll/afterAll() can take a function which will be executed before/after all route changes", ()->
 			invokeCount = before:0, after:0, beforeB:0
 			delays = before:null, after:null, afterC:null
-			Router = Routing.Router()
+			router = Routing.Router()
 
 			Promise.resolve()
 				.then ()->
-					Router
+					router
 						.beforeAll ()-> invokeCount.before++
 						.afterAll ()-> invokeCount.after++
 						.map('a')
@@ -634,7 +645,7 @@ suite "Routing.JS", ()->
 					expect(invokeCount.before).to.equal 2
 					expect(invokeCount.beforeB).to.equal 1
 					expect(invokeCount.after).to.equal 2
-					Router
+					router
 						.beforeAll ()-> invokeCount.before++; delays.before=Promise.delay(7)
 						.afterAll ()-> invokeCount.after++; delays.after=Promise.delay(5)
 					setHash('c')
@@ -665,13 +676,13 @@ suite "Routing.JS", ()->
 
 
 		test "route actions & enter actions will be passed with 2 arguments - 1st is the previous path and 2nd is the previous route object", ()->
-			Router = Routing.Router()
+			router = Routing.Router()
 			args = path:false, route:false
 			
-			userRoute = Router.map('/user/:ID').to (path, route)-> args = {path,route}
-			adminRoute = Router.map('/admin/:ID').to (path, route)-> args = {path,route}
+			userRoute = router.map('/user/:ID').to (path, route)-> args = {path,route}
+			adminRoute = router.map('/admin/:ID').to (path, route)-> args = {path,route}
 			Promise.resolve()
-				.then ()-> Router.listen()
+				.then ()-> router.listen()
 				.delay()
 				.then ()->
 					expect(args.path).to.equal(false)
@@ -699,14 +710,14 @@ suite "Routing.JS", ()->
 
 
 		test "route leave actions will be passed with 2 arguments - 1st is the future path and 2nd is the future route object", ()->
-			Router = Routing.Router()
+			router = Routing.Router()
 			userArgs = path:false, route:false
 			adminArgs = path:false, route:false
 			
-			userRoute = Router.map('/user/:ID').leaving (path, route)-> userArgs = {path,route}
-			adminRoute = Router.map('/admin/:ID').leaving (path, route)-> adminArgs = {path,route}
+			userRoute = router.map('/user/:ID').leaving (path, route)-> userArgs = {path,route}
+			adminRoute = router.map('/admin/:ID').leaving (path, route)-> adminArgs = {path,route}
 			Promise.resolve()
-				.then ()-> Router.listen()
+				.then ()-> router.listen()
 				.delay()
 				.then ()->
 					expect(userArgs.path).to.equal(false)
@@ -785,28 +796,28 @@ suite "Routing.JS", ()->
 			invokeCount = {}
 			incCount = (prop)-> invokeCount[prop] ?= 0; invokeCount[prop]++
 			
-			Router = Routing.Router()
+			router = Routing.Router()
 			Promise.resolve()
 				.then ()->
-					Router.map('AAA').to ()-> incCount('AAA')
-					Router.map('BBB').to ()-> incCount('BBB')
-					Router.map('CCC').to ()-> incCount('CCC')
-					Router.map('DDD').to ()-> incCount('DDD')
-					Router.listen()
+					router.map('AAA').to ()-> incCount('AAA')
+					router.map('BBB').to ()-> incCount('BBB')
+					router.map('CCC').to ()-> incCount('CCC')
+					router.map('DDD').to ()-> incCount('DDD')
+					router.listen()
 
 				.delay()
 				.then ()->
-					Router.fallback ()-> incCount('fallback')
+					router.fallback ()-> incCount('fallback')
 					expect(invokeCount.AAA).to.equal undefined
 					expect(invokeCount.BBB).to.equal undefined
 					expect(invokeCount.CCC).to.equal undefined
 					expect(invokeCount.DDD).to.equal undefined
 					expect(invokeCount.fallback).to.equal undefined
-					Router.forward()
+					router.forward()
 
 				.then ()->
 					expect(invokeCount.fallback).to.equal undefined
-					Router.back()
+					router.back()
 
 				.then ()->
 					expect(invokeCount.fallback).to.equal undefined
@@ -821,29 +832,29 @@ suite "Routing.JS", ()->
 					expect(invokeCount.CCC).to.equal 1
 					expect(invokeCount.DDD).to.equal 1
 					expect(invokeCount.fallback).to.equal undefined
-					Router.back()
+					router.back()
 
 				.then ()->
 					expect(invokeCount.CCC).to.equal 2
-					Router.back()
+					router.back()
 						
 				.then ()->
 					expect(invokeCount.BBB).to.equal 2
-					Router.forward().then ()-> Router.forward()
+					router.forward().then ()-> router.forward()
 
 				.then ()->
 					expect(invokeCount.AAA).to.equal 1
 					expect(invokeCount.BBB).to.equal 2
 					expect(invokeCount.CCC).to.equal 3
 					expect(invokeCount.DDD).to.equal 2
-					Router.back().then ()-> Router.back()
+					router.back().then ()-> router.back()
 
 				.then ()->
 					expect(invokeCount.AAA).to.equal 1
 					expect(invokeCount.BBB).to.equal 3
 					expect(invokeCount.CCC).to.equal 4
 					expect(invokeCount.DDD).to.equal 2
-					Router.back()
+					router.back()
 
 				.then ()->
 					expect(invokeCount.AAA).to.equal 2
@@ -851,7 +862,7 @@ suite "Routing.JS", ()->
 					expect(invokeCount.CCC).to.equal 4
 					expect(invokeCount.DDD).to.equal 2
 					expect(getHash()).to.equal 'AAA'
-					Router.back()
+					router.back()
 
 				.then ()->
 					expect(invokeCount.AAA).to.equal 2
@@ -866,10 +877,10 @@ suite "Routing.JS", ()->
 				abc: {before:0, reg:0, after:0}
 				def: {before:0, reg:0, after:0}
 			
-			Router = Routing.Router()
+			router = Routing.Router()
 			Promise.resolve()
 				.then ()->
-					Router
+					router
 						.map('abc')
 							.entering ()-> invokeCount.abc.before++
 							.to ()-> invokeCount.abc.reg++
@@ -902,7 +913,7 @@ suite "Routing.JS", ()->
 					expect(invokeCount.def.before).to.equal 1
 					expect(invokeCount.def.reg).to.equal 1
 					expect(invokeCount.def.after).to.equal 0
-					Router.refresh()
+					router.refresh()
 
 				.then ()->
 					expect(invokeCount.abc.before).to.equal 1
@@ -911,7 +922,7 @@ suite "Routing.JS", ()->
 					expect(invokeCount.def.before).to.equal 2
 					expect(invokeCount.def.reg).to.equal 2
 					expect(invokeCount.def.after).to.equal 1
-					Router.refresh()
+					router.refresh()
 
 				.then ()->
 					expect(invokeCount.abc.before).to.equal 1
@@ -922,48 +933,48 @@ suite "Routing.JS", ()->
 					expect(invokeCount.def.after).to.equal 2
 
 
-		test "a default route can be specified in Router.listen() which will be defaulted to if there isn't a matching route for the current hash", ()->
+		test "a default route can be specified in router.listen() which will be defaulted to if there isn't a matching route for the current hash", ()->
 			invokeCount = abc:0, def:0
-			Router = null
-			createRouter = (targetHash='')->
+			router = null
+			createrouter = (targetHash='')->
 				setHash(targetHash)
 				invokeCount.abc = invokeCount.def = 0
-				Router?.kill()
-				Router = Routing.Router()
-				Router.map('/abc').to ()-> invokeCount.abc++
-				Router.map('/def').to ()-> invokeCount.def++
-				return Router
+				router?.kill()
+				router = Routing.Router()
+				router.map('/abc').to ()-> invokeCount.abc++
+				router.map('/def').to ()-> invokeCount.def++
+				return router
 
 			Promise.resolve()
-				.then ()-> createRouter().listen()
+				.then ()-> createrouter().listen()
 				.delay()
 				.then ()->
 					expect(getHash()).to.equal ''
 					expect(invokeCount.abc).to.equal 0
 					expect(invokeCount.def).to.equal 0
 				
-				.then ()-> createRouter('def').listen('abc')
+				.then ()-> createrouter('def').listen('abc')
 				.delay()
 				.then ()->
 					expect(getHash()).to.equal 'def'
 					expect(invokeCount.abc).to.equal 0
 					expect(invokeCount.def).to.equal 1
 				
-				.then ()-> createRouter().listen('/abc')
+				.then ()-> createrouter().listen('/abc')
 				.delay()
 				.then ()->
 					expect(getHash()).to.equal 'abc'
 					expect(invokeCount.abc).to.equal 1
 					expect(invokeCount.def).to.equal 0
 				
-				.then ()-> createRouter().listen('def')
+				.then ()-> createrouter().listen('def')
 				.delay()
 				.then ()->
 					expect(getHash()).to.equal 'def'
 					expect(invokeCount.abc).to.equal 0
 					expect(invokeCount.def).to.equal 1
 				
-				.then ()-> createRouter().listen('/akjsdf')
+				.then ()-> createrouter().listen('/akjsdf')
 				.delay()
 				.then ()->
 					expect(getHash()).to.equal ''
@@ -971,58 +982,58 @@ suite "Routing.JS", ()->
 					expect(invokeCount.def).to.equal 0
 
 
-		test "if a falsey value is passed to Router.listen() the initial route match will be skipped", ()->
+		test "if a falsey value is passed to router.listen() the initial route match will be skipped", ()->
 			window.invokeCount = 0
-			Router = null
-			createRouter = (initialHash)->
-				Router?.kill()
+			router = null
+			createrouter = (initialHash)->
+				router?.kill()
 				setHash(initialHash)
-				Router = Routing.Router()
-				Router.map('/abc').to ()-> invokeCount++
-				Router.fallback ()-> invokeCount++
-				return Router
+				router = Routing.Router()
+				router.map('/abc').to ()-> invokeCount++
+				router.fallback ()-> invokeCount++
+				return router
 			
 			Promise.resolve()
-				.then ()-> createRouter('c')
+				.then ()-> createrouter('c')
 				.delay()
-				.then ()-> Router.listen()
+				.then ()-> router.listen()
 				.delay()
 				.then ()-> expect(invokeCount).to.equal 1
 
-				.then ()-> createRouter('abc')
+				.then ()-> createrouter('abc')
 				.delay()
-				.then ()-> Router.listen()
+				.then ()-> router.listen()
 				.delay()
 				.then ()-> expect(invokeCount).to.equal 2
 
-				.then ()-> createRouter('def')
+				.then ()-> createrouter('def')
 				.delay()
-				.then ()-> Router.listen()
-				.delay()
-				.then ()-> expect(invokeCount).to.equal 3
-
-				.then ()-> createRouter('')
-				.delay()
-				.then ()-> Router.listen(false)
+				.then ()-> router.listen()
 				.delay()
 				.then ()-> expect(invokeCount).to.equal 3
 
-				.then ()-> createRouter('abc')
+				.then ()-> createrouter('')
 				.delay()
-				.then ()-> Router.listen('')
+				.then ()-> router.listen(false)
+				.delay()
+				.then ()-> expect(invokeCount).to.equal 3
+
+				.then ()-> createrouter('abc')
+				.delay()
+				.then ()-> router.listen('')
 				.delay()
 				.then ()-> expect(invokeCount).to.equal 3
 
 
 		test "a fallback route (e.g. 404) can be specified to be defaulted to when the specified hash has no matching routes", ()->
 			invokeCount = abc:0, fallback:0
-			Router = Routing.Router()
+			router = Routing.Router()
 
 			Promise.resolve()
 				.then ()->
-					Router.map('abc').to ()-> invokeCount.abc++
-					Router.fallback ()-> invokeCount.fallback++
-					Router.listen()
+					router.map('abc').to ()-> invokeCount.abc++
+					router.fallback ()-> invokeCount.fallback++
+					router.listen()
 				
 				.delay()
 				.then ()->
@@ -1047,7 +1058,7 @@ suite "Routing.JS", ()->
 					expect(getHash()).to.equal ''
 					expect(invokeCount.abc).to.equal 1
 					expect(invokeCount.fallback).to.equal 3
-					Router.fallback ()-> setHash('abc')
+					router.fallback ()-> setHash('abc')
 					setHash('aksjdfh')
 
 				.then ()->				
@@ -1057,21 +1068,21 @@ suite "Routing.JS", ()->
 		test "a failed route transition will cause the router to go to the fallback route if exists", ()->
 			invokeCount = 0
 			sinon.stub(console, 'error')
-			thrown=false;
+			thrown = false;
+			router = Routing.Router()
 
 			Promise.delay()
 				.then ()-> 
-					Router = Routing.Router()
-					Router.map('abc').to ()-> Promise.delay().then ()-> thrown=true;throw new Error 'rejected'
-					Router.fallback ()-> invokeCount++
-					Router.listen()
+					router.map('abc').to ()-> Promise.delay().then ()-> thrown=true;throw new Error 'rejected'
+					router.fallback ()-> invokeCount++
+					router.listen()
 				
 				.delay()
 				
 				.then ()->
 					expect(invokeCount).to.equal 1
 					expect(getHash()).to.equal ''
-					setHash('abc')
+					setHash('abc', null, {router})
 			
 				.then ()->
 					expect(getHash()).to.equal 'abc'
@@ -1084,24 +1095,24 @@ suite "Routing.JS", ()->
 		test "a failed route transition will cause the router to go to the previous route if no fallback exists", ()->
 			invokeCount = 0
 			sinon.stub(console, 'error')
-			Router = Routing.Router()
+			router = Routing.Router()
 
 			Promise.delay()
 				.then ()-> 
-					Router.map('abc').to ()-> invokeCount++
-					Router.map('def').to ()-> Promise.delay().then ()-> throw new Error 'rejected'
-					Router.listen()
+					router.map('abc').to ()-> invokeCount++
+					router.map('def').to ()-> Promise.delay().then ()-> throw new Error 'rejected'
+					router.listen()
 				
 				.delay()
 				.then ()->
 					expect(invokeCount).to.equal 0
 					expect(getHash()).to.equal ''
-					setHash('abc')
+					setHash('abc', null, {router})
 			
 				.then ()->
 					expect(getHash()).to.equal 'abc'
 					expect(invokeCount).to.equal 1
-					setHash('def')
+					setHash('def', null, {router})
 			
 				.then ()->
 					expect(getHash()).to.equal 'abc'
@@ -1115,10 +1126,10 @@ suite "Routing.JS", ()->
 		test "route.filters() can accept a param:filterFn object map which will be invoked for each param on route matching and will use the return value to decide the match result", ()->
 			invokeCount = route:0, fallback:0
 			params = {}
-			Router = Routing.Router()
+			router = Routing.Router()
 			
-			Router.fallback ()-> invokeCount.fallback++
-			Router
+			router.fallback ()-> invokeCount.fallback++
+			router
 				.map('/api/:version/:function?/:username?')
 					.to ()-> invokeCount.route++; params = @params
 					.filters 
@@ -1131,7 +1142,7 @@ suite "Routing.JS", ()->
 						version: (version)-> version.length is 1 and /\d/.test(version)
 						username: (username)-> username and /^[^\d]+$/.test(username)
 
-			Promise.resolve(Router.listen()).delay()
+			Promise.resolve(router.listen()).delay()
 				.then ()->
 					expect(invokeCount.route).to.equal 0
 					expect(invokeCount.fallback).to.equal 1
@@ -1170,12 +1181,12 @@ suite "Routing.JS", ()->
 	suite "base paths", ()->
 		test "a base path can be specified via Routing.base() and will only match routes that begin with the base", ()->
 			base = 'theBase/goes/here'
-			Router = Routing.Router()
+			router = Routing.Router()
 			invokeCount = abc:0, def:0, fallback:0, root:0
 			
 			Promise.resolve(setHash(base))
 				.then ()->
-					Router
+					router
 						.base(base)
 						.fallback ()-> invokeCount.fallback++
 						.map('/').to ()-> invokeCount.root++
@@ -1190,36 +1201,36 @@ suite "Routing.JS", ()->
 
 				.then ()->
 					expect(invokeCount).to.eql abc:0, def:0, fallback:0, root:1
-					expect(Router.current.path).to.equal base
+					expect(router.current.path).to.equal base
 					expect(getHash()).to.equal 'abc'
 					setHash("#{base}/abc")
 
 				.then ()->
 					expect(invokeCount).to.eql abc:1, def:0, fallback:0, root:1
-					expect(Router.current.path).to.equal "#{base}/abc"
+					expect(router.current.path).to.equal "#{base}/abc"
 					expect(getHash()).to.equal "#{base}/abc"
 					setHash('def')
 
 				.then ()->
 					expect(invokeCount).to.eql abc:1, def:0, fallback:0, root:1
-					expect(Router.current.path).to.equal "#{base}/abc"
+					expect(router.current.path).to.equal "#{base}/abc"
 					expect(getHash()).to.equal "def"
 					setHash("#{base}/def")
 
 				.then ()->
 					expect(invokeCount).to.eql abc:1, def:1, fallback:0, root:1
-					expect(Router.current.path).to.equal "#{base}/def"
+					expect(router.current.path).to.equal "#{base}/def"
 					expect(getHash()).to.equal "#{base}/def"
 
 
 		test "routers with base paths should have their .go() method auto-prefix paths with the base path if they do not have it", ()->
 			base = 'theBase/goes/here'
 			invokeCount = abc:0, def:0
-			Router = Routing.Router()
+			router = Routing.Router()
 			
 			Promise.resolve()
 				.then ()->
-					Router
+					router
 						.base(base)
 						.map('abc').to ()-> invokeCount.abc++
 						.map('def').to ()-> invokeCount.def++
@@ -1229,44 +1240,44 @@ suite "Routing.JS", ()->
 				.then ()->
 					expect(invokeCount.abc).to.equal 0
 					expect(invokeCount.def).to.equal 0
-					Router.go('abc')
+					router.go('abc')
 
 				.then ()->
 					expect(invokeCount.abc).to.equal 1
 					expect(invokeCount.def).to.equal 0
-					expect(Router.current.path).to.equal "#{base}/abc"
+					expect(router.current.path).to.equal "#{base}/abc"
 					expect(getHash()).to.equal "#{base}/abc"
-					Router.go('/def')
+					router.go('/def')
 
 				.then ()->
 					expect(invokeCount.abc).to.equal 1
 					expect(invokeCount.def).to.equal 1
-					expect(Router.current.path).to.equal "#{base}/def"
+					expect(router.current.path).to.equal "#{base}/def"
 					expect(getHash()).to.equal "#{base}/def"
-					Router.go("#{base}/abc")
+					router.go("#{base}/abc")
 
 				.then ()->
 					expect(invokeCount.abc).to.equal 2
 					expect(invokeCount.def).to.equal 1
-					expect(Router.current.path).to.equal "#{base}/abc"
+					expect(router.current.path).to.equal "#{base}/abc"
 					expect(getHash()).to.equal "#{base}/abc"
-					Router.go("#{base}/def")
+					router.go("#{base}/def")
 
 				.then ()->
 					expect(invokeCount.abc).to.equal 2
 					expect(invokeCount.def).to.equal 2
-					expect(Router.current.path).to.equal "#{base}/def"
+					expect(router.current.path).to.equal "#{base}/def"
 					expect(getHash()).to.equal "#{base}/def"
 
 
 		test "default paths will work with routers that have a base path specified", ()->
 			base = 'theBase/goes/here'
-			Router = Routing.Router()
+			router = Routing.Router()
 			invokeCount = abc:0, def:0, fallback:0
 			
 			Promise.resolve()
 				.then ()->
-					Router
+					router
 						.base(base)
 						.fallback ()-> invokeCount.fallback++
 						.map('abc').to ()-> invokeCount.abc++
@@ -1281,9 +1292,9 @@ suite "Routing.JS", ()->
 					setHash('abc')
 				
 				.then ()->
-					Router.kill()
+					router.kill()
 					setHash('')
-					Router
+					router
 						.base(base)
 						.fallback ()-> invokeCount.fallback++
 						.map('abc').to ()-> invokeCount.abc++
@@ -1302,76 +1313,76 @@ suite "Routing.JS", ()->
 	suite "redirects", ()->
 		test "invoking this.redirect(target) from inside a route function will cause the router to redirect to the specified path", ()->
 			invokeCount = abc:0, def:0, ghi:0
-			Router = Routing.Router()
+			router = Routing.Router()
 
 			Promise.resolve()
 				.then ()->
-					Router.map('abc').to ()-> invokeCount.abc++; @redirect('def')
-					Router.map('def').to ()-> invokeCount.def++
-					Router.map('ghi').to ()-> invokeCount.ghi++; @redirect('abc')
-					Router.listen()
+					router.map('abc').to ()-> invokeCount.abc++; @redirect('def')
+					router.map('def').to ()-> invokeCount.def++
+					router.map('ghi').to ()-> invokeCount.ghi++; @redirect('abc')
+					router.listen()
 				
 				.delay()
 				.then ()->
 					expect(invokeCount).to.eql {abc:0, def:0, ghi:0}
-					expect(Router.current.path).to.equal null
+					expect(router.current.path).to.equal null
 					expect(getHash()).to.equal ''
 					setHash('abc')
 				
 				.then ()->
 					expect(invokeCount).to.eql {abc:1, def:1, ghi:0}
-					expect(Router.current.path).to.equal 'def'
+					expect(router.current.path).to.equal 'def'
 					expect(getHash()).to.equal 'def'
 					setHash('ghi')
 				
 				.then ()->
 					expect(invokeCount).to.eql {abc:2, def:2, ghi:1}
-					expect(Router.current.path).to.equal 'def'
+					expect(router.current.path).to.equal 'def'
 					expect(getHash()).to.equal 'def'
 					setHash('ghi')
 
 
 		test "redirects should replace the last entry in the router's history", ()->
 			invokeCount = abc:0, def:0, ghi:0
-			Router = Routing.Router()
-			Router.history = Router._history or Router._h
+			router = Routing.Router()
+			router.history = router._history or router._h
 
 			Promise.resolve()
 				.then ()->
-					Router.map('abc').to ()-> invokeCount.abc++; @redirect('def')
-					Router.map('def').to ()-> invokeCount.def++
-					Router.map('ghi').to ()-> invokeCount.ghi++; @redirect('abc')
-					Router.map('jkl')
-					Router.listen()
+					router.map('abc').to ()-> invokeCount.abc++; @redirect('def')
+					router.map('def').to ()-> invokeCount.def++
+					router.map('ghi').to ()-> invokeCount.ghi++; @redirect('abc')
+					router.map('jkl')
+					router.listen()
 				
 				.delay()
 				.then ()->
 					expect(invokeCount).to.eql {abc:0, def:0, ghi:0}
 					expect(getHash()).to.equal ''
-					expect(Router.current.path).to.equal null
-					expect(Router.history.length).to.equal 0
+					expect(router.current.path).to.equal null
+					expect(router.history.length).to.equal 0
 					setHash('abc')
 				
 				.then ()->
 					expect(invokeCount).to.eql {abc:1, def:1, ghi:0}
 					expect(getHash()).to.equal 'def'
-					expect(Router.current.path).to.equal 'def'
-					expect(Router.history.length).to.equal 0
+					expect(router.current.path).to.equal 'def'
+					expect(router.history.length).to.equal 0
 					setHash('jkl')
 				
 				.then ()->
 					expect(invokeCount).to.eql {abc:1, def:1, ghi:0}
 					expect(getHash()).to.equal 'jkl'
-					expect(Router.current.path).to.equal 'jkl'
-					expect(Router.history.length).to.equal 1
+					expect(router.current.path).to.equal 'jkl'
+					expect(router.history.length).to.equal 1
 					setHash('ghi')
 				
 				.then ()->
 					expect(invokeCount).to.eql {abc:2, def:2, ghi:1}
 					expect(getHash()).to.equal 'def'
-					expect(Router.current.path).to.equal 'def'
-					expect(Router.history.length).to.equal 2
-					expect(Router.history[1].path).to.equal 'jkl'
+					expect(router.current.path).to.equal 'def'
+					expect(router.history.length).to.equal 2
+					expect(router.history[1].path).to.equal 'jkl'
 
 
 
@@ -1469,13 +1480,13 @@ suite "Routing.JS", ()->
 
 	suite "passive routes", ()->
 		test "routes can be marked as passive via route.passive() which will cause it not to update the window.location.hash or router history on transition", ()->
-			Router = Routing.Router()
-			Router.history = Router._history or Router._h
+			router = Routing.Router()
+			router.history = router._history or router._h
 			window.invokeCount = aA:0, aB:0, pA:0, pB:0, pC:0, lA:0, lD:0, eD:0
 
 			Promise.resolve()
 				.then ()->
-					Router
+					router
 						.map('def')
 						.map('abc/first').to ()-> invokeCount.aA++
 						.map('abc/second').to ()-> invokeCount.aB++
@@ -1490,39 +1501,38 @@ suite "Routing.JS", ()->
 
 				.delay()
 				.then ()->
-					# console.log Router.routes.map (p)-> p.path.string
 					expect(invokeCount, 'def').to.eql aA:0, aB:0, pA:0, pB:0, pC:0, lA:0, lD:0, eD:0
-					expect(Router.history.length).to.equal 0
+					expect(router.history.length).to.equal 0
 					expect(getHash()).to.equal 'def'
 					setHash('abc/first')
 
 				.then ()->
 					expect(invokeCount, 'abc/first').to.eql aA:1, aB:0, pA:1, pB:1, pC:0, lA:0, lD:0, eD:0
-					expect(Router.history.length).to.equal 1
+					expect(router.history.length).to.equal 1
 					expect(getHash()).to.equal 'abc/first'
-					setHash('abc/second')
+					router.go('abc/second')
 
 				.then ()->
 					expect(invokeCount, 'abc/second').to.eql aA:1, aB:1, pA:2, pB:2, pC:0, lA:1, lD:0, eD:0
-					expect(Router.history.length).to.equal 2
+					expect(router.history.length).to.equal 2
 					expect(getHash()).to.equal 'abc/second'
-					Router.go('abc/second/third')
+					router.go('abc/second/third')
 
 				.then ()->
 					expect(invokeCount, 'abc/second/third').to.eql aA:1, aB:1, pA:2, pB:3, pC:1, lA:2, lD:0, eD:0
-					expect(Router.history.length).to.equal 2
+					expect(router.history.length).to.equal 2
 					expect(getHash()).to.equal 'abc/second'
-					Router.go('ghi')
+					router.go('ghi')
 
 				.then ()->
 					expect(invokeCount, 'ghi').to.eql aA:1, aB:1, pA:2, pB:3, pC:1, lA:2, lD:0, eD:1
-					expect(Router.history.length).to.equal 2
+					expect(router.history.length).to.equal 2
 					expect(getHash()).to.equal 'abc/second'
-					Router.go('abc/first')
+					router.go('abc/first')
 
 				.then ()->
 					expect(invokeCount, 'abc/first').to.eql aA:2, aB:1, pA:3, pB:4, pC:1, lA:2, lD:1, eD:1
-					expect(Router.history.length).to.equal 3
+					expect(router.history.length).to.equal 3
 					expect(getHash()).to.equal 'abc/first'
 
 
@@ -1562,7 +1572,7 @@ suite "Routing.JS", ()->
 
 				.then ()->
 					expect(invokeCount).to.eql entering:1, to:1, leaving:1, real:1
-					setHash('def')
+					router.go('def')
 
 				.then ()->
 					expect(invokeCount).to.eql entering:2, to:2, leaving:1, real:2
@@ -1572,13 +1582,13 @@ suite "Routing.JS", ()->
 	suite "misc", ()->
 		test "a route can be removed by calling its .remove() method or by invoking this.remove() from inside the route", ()->
 			invokeCount = {abc:0, def:0}
-			Router = Routing.Router()
-			abcRoute = Router.map('abc').to ()-> invokeCount.abc++
-			defRoute = Router.map('def').to ()-> invokeCount.def++
-			Router.map('ghi')
+			router = Routing.Router()
+			abcRoute = router.map('abc').to ()-> invokeCount.abc++
+			defRoute = router.map('def').to ()-> invokeCount.def++
+			router.map('ghi')
 
 			Promise.resolve()
-				.then ()-> Router.listen()
+				.then ()-> router.listen()
 				.delay()
 				.then ()->
 					expect(invokeCount.abc).to.equal 0
@@ -1720,79 +1730,74 @@ suite "Routing.JS", ()->
 					router.go 'def'
 
 
-		test "routing.Router() accpets a number-type argument which will be used as the route loading timeout (ms)", ()->
+		test "Routing.Router() accpets a number-type argument which will be used as the route loading timeout (ms)", ()->
 			sinon.stub(console, 'error')
 			invokeCount = abc:0, def:0, ghi:0
 			delay = abc:0, def:0
-			Router = Routing.Router(20)
-			
-			Promise.resolve()
+			router = Routing.Router(20)
+
+			Promise.bind(@)
 				.then ()->
-					Router.map('abc').to ()-> invokeCount.abc++; Promise.delay(delay.abc)
-					Router.map('def').to ()-> invokeCount.def++; Promise.delay(delay.def)
-					Router.map('ghi').to ()-> invokeCount.ghi++;
-					Router.listen()
+					router.map('abc').to ()-> invokeCount.abc++; Promise.delay(delay.abc)
+					router.map('def').to ()-> invokeCount.def++; Promise.delay(delay.def)
+					router.map('ghi').to ()-> invokeCount.ghi++;
+					router.listen()
 
 				.delay()
 				.then ()->
-					setHash('abc', 5)
+					@clock = sinon.useFakeTimers(now:Date.now())
+				
+				.then ()->
+					setHash('abc', 10, {@clock})
 
 				.then ()->
-					expect(invokeCount.abc).to.equal 1
-					expect(invokeCount.def).to.equal 0
-					expect(invokeCount.ghi).to.equal 0
+					expect(invokeCount).to.eql abc:1, def:0, ghi:0
 					expect(console.error.callCount).to.equal 0
-					expect(Router.current.path).to.equal 'abc'
+					expect(router.current.path).to.equal 'abc'
 					expect(getHash()).to.equal 'abc'
 					delay.abc = delay.def = 10
-					setHash('def', 15)
+					setHash('def', 15, {@clock})
 
 				.then ()->
-					expect(invokeCount.abc).to.equal 1
-					expect(invokeCount.def).to.equal 1
-					expect(invokeCount.ghi).to.equal 0
+					expect(invokeCount).to.eql abc:1, def:1, ghi:0
 					expect(console.error.callCount).to.equal 0
-					expect(Router.current.path).to.equal 'def'
+					expect(router.current.path).to.equal 'def'
 					expect(getHash()).to.equal 'def'
 					delay.abc = 20
-					setHash('abc', 25)
+					setHash('abc', 25, {@clock})
 
 				.then ()->
-					expect(invokeCount.abc).to.equal 2
-					expect(invokeCount.def).to.equal 2
-					expect(invokeCount.ghi).to.equal 0
+					expect(invokeCount).to.eql abc:2, def:2, ghi:0
 					expect(console.error.callCount).to.equal 1
-					expect(Router.current.path).to.equal 'def'
+					expect(router.current.path).to.equal 'def'
 					expect(getHash()).to.equal 'def'
 					delay.def = 20
-					setHash('ghi', 10)
+					setHash('ghi', 10, {@clock})
 
 				.then ()->
-					expect(invokeCount.abc).to.equal 2
-					expect(invokeCount.def).to.equal 2
-					expect(invokeCount.ghi).to.equal 1
+					expect(invokeCount).to.eql abc:2, def:2, ghi:1
 					expect(console.error.callCount).to.equal 1
-					expect(Router.current.path).to.equal 'ghi'
+					expect(router.current.path).to.equal 'ghi'
 					expect(getHash()).to.equal 'ghi'
-					setHash('def', 30)
+					setHash('def', 30, {@clock})
 
 				.then ()->
-					expect(invokeCount.abc).to.equal 2
-					expect(invokeCount.def).to.equal 3
-					expect(invokeCount.ghi).to.equal 2
+					expect(invokeCount).to.eql abc:2, def:3, ghi:2
 					expect(console.error.callCount).to.equal 2
-					expect(Router.current.path).to.equal 'ghi'
+					expect(router.current.path).to.equal 'ghi'
 					expect(getHash()).to.equal 'ghi'
 
-				.finally ()-> console.error.restore()
+				.finally ()->
+					console.error.restore()
+					@clock.restore()
 
 
 
 
 	suite "destruction", ()->
 		test "router.kill() will destroy the router instance and will remove all handlers", ()->
-			RouterA = Routing.Router()
-			RouterB = Routing.Router()
+			routerA = Routing.Router()
+			routerB = Routing.Router()
 			invokeCountA = {}
 			invokeCountB = {}
 
@@ -1810,8 +1815,8 @@ suite "Routing.JS", ()->
 
 			Promise.resolve()
 				.then ()->
-					defineRoutes(RouterA, invokeCountA)
-					defineRoutes(RouterB, invokeCountB)
+					defineRoutes(routerA, invokeCountA)
+					defineRoutes(routerB, invokeCountB)
 					invokeChanges()
 				
 				.delay()
@@ -1831,7 +1836,7 @@ suite "Routing.JS", ()->
 					expect(invokeCountB.AAA).to.equal 2
 					expect(invokeCountB.BBB).to.equal 2
 					expect(invokeCountB.CCC).to.equal 2
-					RouterA.kill()
+					routerA.kill()
 					invokeChanges()
 					
 				.then ()->
@@ -1845,8 +1850,8 @@ suite "Routing.JS", ()->
 
 
 		test "routing.killAll() will destroy all existing router instances and will remove all handlers", ()->
-			RouterA = Routing.Router()
-			RouterB = Routing.Router()
+			routerA = Routing.Router()
+			routerB = Routing.Router()
 			invokeCountA = {}
 			invokeCountB = {}
 
@@ -1864,8 +1869,8 @@ suite "Routing.JS", ()->
 
 			Promise.resolve()
 				.then ()->
-					defineRoutes(RouterA, invokeCountA)
-					defineRoutes(RouterB, invokeCountB)
+					defineRoutes(routerA, invokeCountA)
+					defineRoutes(routerB, invokeCountB)
 					invokeChanges()
 				
 				.delay()

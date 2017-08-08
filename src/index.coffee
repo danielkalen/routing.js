@@ -34,7 +34,7 @@ Routing = new ()->
 		debug "#{matchingRoutes.length} matching routes"
 		
 		for route in matchingRoutes
-			route.router._go(route, path, true) unless route.router.current.path is path
+			route.router._go(route, path, true, 'hashchange') unless route.router.current.path is path
 
 		return
 

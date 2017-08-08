@@ -89,14 +89,15 @@ class Router
 		
 		if storeChange and not route._isPassive
 			debug "storing hash change #{route.path.original}"
-			window.location.hash = path unless path is helpers.currentPath()
+			currentPath = helpers.currentPath()
+			window.location.hash = path unless path is currentPath
 			
 			if navDirection is 'redirect'
 				@current = @prev
 				@_history.pop()
 			
 			@_history.push(@current) if @current.route and navDirection isnt 'back'
-			@_future.length = 0 if not navDirection
+			@_future.length = 0 if not navDirection or navDirection is 'hashchange'
 			
 			@prev = helpers.copyObject(@current)
 			@current = {route, path}
@@ -104,15 +105,18 @@ class Router
 
 		@_pendingRoute = @_pendingRoute.then ()=> new Promise (resolve, reject)=>
 			@_activeRoutes.push(route) unless route is @_fallbackRoute or helpers.includes(@_activeRoutes, route)
+			prevRoutes = activeRoutes.slice()
+			activeRoutes.length = 0
+
 			setTimeout ()=>
 				reject(new Error "TimeoutError: '#{path}' failed to load within #{@timeout}ms (Router ##{@ID})")
 			, @timeout
 
-			debug "starting route transition"
+			debug "starting route transition to '#{route.path?.original or route.path}' (#{if navDirection is 'hashchange' then '' else 'NOT '}from hash change)"
 
 			Promise.resolve()
 				.then @_globalBefore
-				.then ()=> Promise.all(activeRoutes.map (route)=> route._leave(@current.route, @current.path))
+				.then ()=> Promise.all(prevRoutes.map (route)=> route._leave(@current.route, @current.path))
 				.then ()=> route._run(path, @prev.route, @prev.path)
 				.then @_globalAfter
 				.then resolve
@@ -120,8 +124,9 @@ class Router
 
 
 		@_pendingRoute.catch (err)=>
-			debug "error occured during route transition"
+			debug "error occured during route transition to '#{path}'"
 			helpers.logError(err)
+			helpers.removeItem(@_activeRoutes, route)
 			@_pendingRoute = Promise.resolve()
 			
 			if @_fallbackRoute

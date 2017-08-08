@@ -40,6 +40,7 @@ module.exports = class Route
 		@router._removeRoute(@)
 
 	_invokeAction: (action, relatedPath, relatedRoute)->
+		debug "entering '#{@path.original}' from '#{relatedPath}'" if action is @_enterAction
 		result = action.call(@_context, relatedPath, relatedRoute)
 		if result is @router._pendingRoute
 			return null
