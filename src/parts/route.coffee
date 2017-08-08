@@ -1,6 +1,6 @@
 Context = import './context'
 helpers = import './helpers'
-debug = (import 'debug')('routing:router')
+debug = (import 'debug')('routing:route')
 
 module.exports = class Route
 	constructor: (@path, @segments, @router, @_isPassive)->

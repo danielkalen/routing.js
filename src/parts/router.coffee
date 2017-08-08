@@ -152,7 +152,7 @@ class Router
 		matchingRoute = @_routesMap[path]
 
 		if not matchingRoute
-			pathRegex = helpers.segmentsToRegex(segments)
+			pathRegex = helpers.segmentsToRegex(segments, path)
 			matchingRoute = @_routesMap[path] = new Route(pathRegex, segments, @)
 			@_addRoute(matchingRoute)
 
