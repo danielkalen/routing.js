@@ -12,7 +12,7 @@ Routing = new ()->
 		path = helpers.currentPath()
 		matchingRoutes = []
 
-		debug "hash change #{path}"
+		debug "hash change '#{path}'"
 		
 		for router in listeningRouters
 			continue if router._basePath and not router._basePath.test(path)

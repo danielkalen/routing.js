@@ -30,7 +30,7 @@ class Router
 
 			return segmentsDiff
 
-		debug "added route #{route.path.original}"
+		debug "added route '#{route.path.original}'"
 		return route
 
 
@@ -43,7 +43,7 @@ class Router
 		helpers.removeItem(@routes, route)
 		delete @_cache[matchingCacheKey]
 		delete @_routesMap[matchingMapKey]
-		debug "removed route #{route.path.original}"
+		debug "removed route '#{route.path.original}'"
 
 
 
@@ -71,7 +71,7 @@ class Router
 			matchingRoute = passiveRoutes
 			debug "matched #{path} with [#{passiveRoutes.map((r)->r.path.original).join(', ')}]"
 		else
-			debug "matched #{path} with #{matchingRoute.path?.original or matchingRoute.path}" if matchingRoute
+			debug "matched #{path} with '#{matchingRoute.path?.original or matchingRoute.path}'" if matchingRoute
 		
 		return @_cache[path] = matchingRoute if matchingRoute
 

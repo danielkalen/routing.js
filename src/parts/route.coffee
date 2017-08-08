@@ -30,7 +30,7 @@ module.exports = class Route
 			return @
 
 		else if not @_passiveVersion
-			debug "added passive version #{@path.original}"
+			debug "added passive version '#{@path.original}'"
 			@_passiveVersion = new Route(@path, @segments, @router, true)
 			@router._hasPassives = true
 		
@@ -47,7 +47,7 @@ module.exports = class Route
 			return result
 
 	_run: (path, prevRoute, prevPath)->
-		debug "running #{@path.original}"
+		debug "running '#{@path.original}'"
 		@_isActive = true
 		@_context.params = @_resolveParams(path)
 		@_context.query = helpers.parseQuery(path)
@@ -57,7 +57,7 @@ module.exports = class Route
 
 	
 	_leave: (newRoute, newPath)-> if @_isActive
-		debug "leaving #{@path.original} from #{newRoute?.path.original}"
+		debug "leaving '#{@path.original}' to '#{newRoute?.path.original}'"
 		@_isActive = false
 		@_invokeAction(@_leaveAction, newPath, newRoute)
 
