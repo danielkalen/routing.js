@@ -13,6 +13,10 @@
     ]
   },
   "simplyimport": {
+    "transform": [
+      "coffeeify-cached",
+      ".config/transforms/strip-debug"
+    ],
     "finalTransform": [
       ".config/transforms/minify-super",
       ".config/transforms/minify-rename",

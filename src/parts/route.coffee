@@ -1,5 +1,6 @@
 Context = import './context'
 helpers = import './helpers'
+debug = (import 'debug')('routing:router')
 
 module.exports = class Route
 	constructor: (@path, @segments, @router, @_isPassive)->
@@ -29,6 +30,7 @@ module.exports = class Route
 			return @
 
 		else if not @_passiveVersion
+			debug "added passive version #{@path.original}"
 			@_passiveVersion = new Route(@path, @segments, @router, true)
 			@router._hasPassives = true
 		
@@ -45,6 +47,7 @@ module.exports = class Route
 			return result
 
 	_run: (path, prevRoute, prevPath)->
+		debug "running #{@path.original}"
 		@_isActive = true
 		@_context.params = @_resolveParams(path)
 		@_context.query = helpers.parseQuery(path)
@@ -54,6 +57,7 @@ module.exports = class Route
 
 	
 	_leave: (newRoute, newPath)-> if @_isActive
+		debug "leaving #{@path.original} from #{newRoute?.path.original}"
 		@_isActive = false
 		@_invokeAction(@_leaveAction, newPath, newRoute)
 

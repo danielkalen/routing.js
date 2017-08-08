@@ -1,5 +1,6 @@
 Router = import './parts/router'
 helpers = import './parts/helpers'
+debug = (import 'debug')('routing:global')
 
 Routing = new ()->
 	routers = []
@@ -10,6 +11,8 @@ Routing = new ()->
 	handleHashChange = (e)->
 		path = helpers.currentPath()
 		matchingRoutes = []
+
+		debug "hash change #{path}"
 		
 		for router in listeningRouters
 			continue if router._basePath and not router._basePath.test(path)
@@ -27,6 +30,8 @@ Routing = new ()->
 
 		highestPriority = Math.max (matchingRoutes.map (route)-> route.router._priority)...
 		matchingRoutes = matchingRoutes.filter (route)-> route.router._priority is highestPriority
+		
+		debug "#{matchingRoutes.length} matching routes"
 		
 		for route in matchingRoutes
 			route.router._go(route, path, true) unless route.router.current.path is path

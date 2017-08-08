@@ -113,16 +113,17 @@ helpers.parsePath = (path)->
 	return segments
 
 
-helpers.pathToRegex = (pathOrig, openEnded)->
-	path = pathOrig.replace /\//g, '\\/'
-	regex = "^#{pathOrig}"
+helpers.pathToRegex = (targetPath, openEnded, original)->
+	path = targetPath.replace /\//g, '\\/'
+	regex = "^#{targetPath}"
 	regex += '$' unless openEnded
 	regex = new RegExp(regex)
-	regex.string = pathOrig
-	regex.length = pathOrig.length
+	regex.original = original
+	regex.string = targetPath
+	regex.length = targetPath.length
 	return regex
 
-helpers.segmentsToRegex = (segments)->
+helpers.segmentsToRegex = (segments, original)->
 	path = ''
 	for segment,index in segments
 		if segments.dynamic?[index]
@@ -135,7 +136,7 @@ helpers.segmentsToRegex = (segments)->
 		
 		path += segment
 
-	return helpers.pathToRegex(path)
+	return helpers.pathToRegex(path, false, original)
 
 
 

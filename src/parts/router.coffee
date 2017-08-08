@@ -1,5 +1,6 @@
 Route = import './route'
 helpers = import './helpers'
+debug = (import 'debug')('routing:router')
 
 class Router
 	constructor: (@timeout, @ID)->
@@ -29,6 +30,7 @@ class Router
 
 			return segmentsDiff
 
+		debug "added route #{route.path.original}"
 		return route
 
 
@@ -41,6 +43,7 @@ class Router
 		helpers.removeItem(@routes, route)
 		delete @_cache[matchingCacheKey]
 		delete @_routesMap[matchingMapKey]
+		debug "removed route #{route.path.original}"
 
 
 
@@ -66,6 +69,9 @@ class Router
 		if passiveRoutes
 			passiveRoutes.push(matchingRoute) if matchingRoute
 			matchingRoute = passiveRoutes
+			debug "matched #{path} with [#{passiveRoutes.map((r)->r.path.original).join(', ')}]"
+		else
+			debug "matched #{path} with #{matchingRoute.path?.original or matchingRoute.path}" if matchingRoute
 		
 		return @_cache[path] = matchingRoute if matchingRoute
 
@@ -82,6 +88,7 @@ class Router
 		path = helpers.applyBase(path, @_basePath)
 		
 		if storeChange and not route._isPassive
+			debug "storing hash change #{route.path.original}"
 			window.location.hash = path unless path is helpers.currentPath()
 			
 			if navDirection is 'redirect'
@@ -95,11 +102,13 @@ class Router
 			@current = {route, path}
 
 
-		@_pendingRoute = @_pendingRoute.then ()=> new Promise (resolve, reject)=>			
+		@_pendingRoute = @_pendingRoute.then ()=> new Promise (resolve, reject)=>
+			@_activeRoutes.push(route) unless route is @_fallbackRoute or helpers.includes(@_activeRoutes, route)
 			setTimeout ()=>
 				reject(new Error "TimeoutError: '#{path}' failed to load within #{@timeout}ms (Router ##{@ID})")
 			, @timeout
-			@_activeRoutes.push(route) unless route is @_fallbackRoute or helpers.includes(@_activeRoutes, route)
+
+			debug "starting route transition"
 
 			Promise.resolve()
 				.then @_globalBefore
@@ -111,6 +120,7 @@ class Router
 
 
 		@_pendingRoute.catch (err)=>
+			debug "error occured during route transition"
 			helpers.logError(err)
 			@_pendingRoute = Promise.resolve()
 			
@@ -124,6 +134,7 @@ class Router
 
 	go: (pathGiven, isRedirect)->
 		if typeof pathGiven is 'string'
+			debug "starting manual route transition to #{pathGiven}"
 			path = helpers.cleanPath(pathGiven)
 			path = helpers.removeBase(path, @_basePath)
 			matchingRoute = @_matchPath(path)
@@ -155,7 +166,9 @@ class Router
 	listen: (initOnStart=true)->
 		@listening = true
 		(import '../')._registerRouter(@, initOnStart)
-
+		
+		debug "router #{@ID} listening"
+		
 		return @
 
 
@@ -168,7 +181,7 @@ class Router
 		return @
 
 	base: (path)->
-		@_basePath = helpers.pathToRegex(helpers.cleanPath(path), true)
+		@_basePath = helpers.pathToRegex(helpers.cleanPath(path), true, path)
 		return @
 
 	priority: (priority)->
@@ -178,9 +191,11 @@ class Router
 	fallback: (fn)->
 		@_fallbackRoute = new Route('*FALLBACK*', [], @)
 		@_fallbackRoute.to(fn)
+		debug "added fallback route"
 		return @
 
 	back: ()->
+		debug "history - back"
 		@_future.unshift(@current) if @current.route
 
 		prev = @_history.pop()
@@ -190,6 +205,7 @@ class Router
 			Promise.resolve()
 
 	forward: ()->
+		debug "history - forward"
 		next = @_future.shift()
 		if next
 			@_go(next.route, next.path, true, 'forward')
@@ -197,6 +213,7 @@ class Router
 			Promise.resolve()
 
 	refresh: ()->
+		debug "history - refresh"
 		if @current.route
 			@prev.path = @current.path
 			@prev.route = @current.route
@@ -210,6 +227,7 @@ class Router
 		@_globalBefore = @_globalAfter = helpers.noop
 		@_fallbackRoute = null
 		@current.route = @current.path = @prev.route = @prev.path = null
+		debug "router #{@ID} killed"
 		return
 
 
