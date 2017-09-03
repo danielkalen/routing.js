@@ -14,9 +14,10 @@ getHash = (hash=window.location.hash)->
 	hash.replace /^#?\/?/, ''
 
 setHash = (targetHash, delay=4, extra={})-> new Promise (resolve)->
-	return resolve() if getHash() is getHash(targetHash)
-	targetHash = getHash(targetHash)
-	{clock, router} = extra
+	unless typeof targetHash is 'function'
+		return resolve() if getHash() is getHash(targetHash)
+		targetHash = getHash(targetHash)
+		{clock, router} = extra
 	
 	handler = ()->
 		window.removeEventListener('hashchange', handler)
@@ -27,7 +28,10 @@ setHash = (targetHash, delay=4, extra={})-> new Promise (resolve)->
 		if clock then clock.tick(delay)
 	
 	window.addEventListener('hashchange', handler)
-	window.location.hash = targetHash
+	if typeof targetHash is 'function'
+		targetHash()
+	else
+		window.location.hash = targetHash
 
 
 
@@ -35,6 +39,7 @@ setHash = (targetHash, delay=4, extra={})-> new Promise (resolve)->
 
 suite "Routing.JS", ()->
 	teardown ()-> window.location.hash = ''; Routing.killAll()
+	# teardown ()-> Routing.killAll()
 
 	test "Routing.Router() will return a new router instance", ()->
 		routerA = Routing.Router()
@@ -473,49 +478,113 @@ suite "Routing.JS", ()->
 					expect(params).to.eql '/abc-passive':{}, '/def/:param?':{param:'kale'}, '/def/:param?-passive':{param:'kale'}
 
 
-		test "nested object values", ()->
-			count = {}
-			query = {}
-			router = Routing.Router()
-			register = (path)->
-				count[path] = 0; query[path] = null;
-				router.map(path).to ()-> count[path]++; query[path] = @query
+		suite "nested object values", ()->
+			test "basic", ()->
+				count = 0
+				query = {}
+				router = Routing.Router()
 
-			Promise.resolve()
-				.then ()->
-					register '/'
-					register '/abc'
-					register '/def'
-					router.listen()
+				Promise.resolve()
+					.then ()->
+						router
+							.map('/').to ()-> count++; query = @query
+							.listen()
 
-				.delay()
-				.then ()->
-					expect(count).to.eql '/':1, '/abc':0, '/def':0
-					expect(query).to.eql '/':{}, '/abc':null, '/def':null
-					setHash('/abc?item=23&names=["abc",123, "def"]')
-				
-				.then ()->
-					expect(count).to.eql '/':1, '/abc':1, '/def':0
-					expect(query).to.eql '/':{}, '/abc':{item:'23',names:['abc',123,'def']}, '/def':null
-					setHash('/def?values=[[1,2,3],  [4,5,6]]&item=[]')
-				
-				.then ()->
-					expect(count).to.eql '/':1, '/abc':1, '/def':1
-					expect(query).to.eql '/':{}, '/abc':{item:'23',names:['abc',123,'def']}, '/def':{item:[], values:[[1,2,3],[4,5,6]]}
-					setHash("/?level1=#{encodeURIComponent JSON.stringify({level2:{level3:['level4']}})}")
-				
-				.then ()->
-					expect(count).to.eql '/':2, '/abc':1, '/def':1
-					expect(query['/']).to.eql {level1: {level2: {level3:['level4']}}}
-					setHash("/abc?level1=#{JSON.stringify({level2:{level3:['level4']}})}")
-				
-				.then ()->
-					expect(count).to.eql '/':2, '/abc':2, '/def':1
-					expect(query['/abc']).to.eql {level1: {level2: {level3:['level4']}}}
-				
-				# .then ()->
-				# 	expect(count).to.eql '/':1, '/abc':2, '/def':2
-				# 	expect(query).to.eql '/':{}, '/abc':{item:'45', key:'value'}, '/def':{size:'small',name:'king'}
+					.delay()
+					.then ()->
+						expect(count).to.equal 1
+						expect(query).to.eql {}
+						setHash('/?item=23&names=["abc",123, "def"]')
+					
+					.then ()->
+						expect(count).to.equal 2
+						expect(query).to.eql {item:'23',names:['abc',123,'def']}
+						setHash('/?values=[[1,2,3],  [4,5,6]]&item=[]')
+					
+					.then ()->
+						expect(count).to.equal 3
+						expect(query).to.eql {item:[], values:[[1,2,3],[4,5,6]]}
+						setHash("/?level1=#{encodeURIComponent JSON.stringify({level2:{level3:['level4']}})}")
+					
+					.then ()->
+						expect(count).to.equal 4
+						expect(query).to.eql {level1: {level2: {level3:['level4']}}}
+						setHash("/?level1=#{JSON.stringify({level2:{level3:['level4']}})}")
+					
+					.then ()->
+						expect(count).to.equal 5
+						expect(query).to.eql {level1: {level2: {level3:['level4']}}}
+	
+
+			test "custom parser/serializer", ()->
+				count = 0
+				query = {}
+				dates = [new Date, new Date(Date.now()-1e5)]
+				router = Routing.Router
+					queryParser: (key, value)->
+						if key is 'myNumber'
+							return parseInt(value, 16)
+						if typeof value is 'string' and value.slice(0,5) is 'Date:'
+							result = new Date(if isNaN(value.slice(5)) then value.slice(5) else value.slice(5)*1)
+							return result
+
+						return value
+
+					querySerializer: (key, value)->
+						if key is 'myNumber'
+							return value.toString(16)
+						if value instanceof Date
+							return 'Date:'+value.toISOString()
+
+						return value
+
+				Promise.resolve()
+					.then ()->
+						router
+							.map('/').to ()-> count++; query = @query
+							.listen()
+
+					.delay()
+					.then ()->
+						expect(count).to.equal 1
+						expect(query).to.eql {}
+						setHash("/?date=#{'Date:'+dates[0].toISOString()}")
+					
+					.then ()->
+						expect(count).to.equal 2
+						expect(query.date instanceof Date).to.be.true
+						expect(query.date.valueOf()).to.equal dates[0].valueOf()
+						setHash("/?myNumber=#{(12345).toString(16)}&dates=#{JSON.stringify {a:'Date:'+dates[0].valueOf(), b:'Date:'+dates[1].toISOString()}}")
+					
+					.then ()->
+						expect(count).to.equal 3
+						expect(query.myNumber).to.equal 12345
+						expect(Object.keys query.dates).to.eql ['a','b']
+						expect(query.dates.a.valueOf()).to.equal dates[0].valueOf()
+						expect(query.dates.b.valueOf()).to.equal dates[1].valueOf()
+						setHash("/?myNumber=#{(12345).toString(16)}&values=#{JSON.stringify myNumber:(12345).toString(16)}")
+
+					.then ()->
+						expect(count).to.equal 4
+						expect(query).to.eql {myNumber:12345, values:{myNumber:12345}}
+						setHash ()->
+							orig = Date::toJSON
+							delete Date::toJSON
+							router.setQuery({dates, date:dates[0], values:{a:12345, myNumber:12345}})
+							Date::toJSON = orig
+					
+					.then ()->
+						expect(count).to.equal 5
+						expect(typeof query.date).to.equal 'object'
+						expect(typeof query.dates).to.equal 'object'
+						expect(typeof query.dates[0]).to.equal 'object'
+						expect(typeof query.values).to.equal 'object'
+						expect(typeof query.values.a).to.equal 'number'
+						expect(query.date.valueOf()).to.equal dates[0].valueOf()
+						expect(query.dates[0].valueOf()).to.equal dates[0].valueOf()
+						expect(query.dates[1].valueOf()).to.equal dates[1].valueOf()
+						expect(query.values.a).to.equal 12345
+						expect(query.values.myNumber).to.equal 12345
 
 
 

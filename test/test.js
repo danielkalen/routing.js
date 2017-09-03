@@ -26832,643 +26832,6 @@ module.exports = function addMethod(ctx, name, method) {
 ;
 return module.exports;
 },
-77: function (require, module, exports) {
-(function () {
-var process = require(79);
-"use strict";
-
-var canColor = typeof process !== "undefined";
-
-function colorize(str, color) {
-    if (!canColor) {
-        return str;
-    }
-
-    return "\x1b[" + color + "m" + str + "\x1b[0m";
-}
-
-exports.red = function (str) {
-    return colorize(str, 31);
-};
-
-exports.green = function (str) {
-    return colorize(str, 32);
-};
-
-}).call(this);
-return module.exports;
-},
-53: function (require, module, exports) {
-/*!
- * Chai - expectTypes utility
- * Copyright(c) 2012-2014 Jake Luer <jake@alogicalparadox.com>
- * MIT Licensed
- */
-
-/**
- * ### .expectTypes(obj, types)
- *
- * Ensures that the object being tested against is of a valid type.
- *
- *     utils.expectTypes(this, ['array', 'object', 'string']);
- *
- * @param {Mixed} obj constructed Assertion
- * @param {Array} type A list of allowed types for this assertion
- * @namespace Utils
- * @name expectTypes
- * @api public
- */
-
-var AssertionError = require(19);
-var flag = require(58);
-var type = require(52);
-
-module.exports = function expectTypes(obj, types) {
-  var flagMsg = flag(obj, 'message');
-  var ssfi = flag(obj, 'ssfi');
-
-  flagMsg = flagMsg ? flagMsg + ': ' : '';
-
-  obj = flag(obj, 'object');
-  types = types.map(function (t) { return t.toLowerCase(); });
-  types.sort();
-
-  // Transforms ['lorem', 'ipsum'] into 'a lorem, or an ipsum'
-  var str = types.map(function (t, index) {
-    var art = ~[ 'a', 'e', 'i', 'o', 'u' ].indexOf(t.charAt(0)) ? 'an' : 'a';
-    var or = types.length > 1 && index === types.length - 1 ? 'or ' : '';
-    return or + art + ' ' + t;
-  }).join(', ');
-
-  var objType = type(obj).toLowerCase();
-
-  if (!types.some(function (expected) { return objType === expected; })) {
-    throw new AssertionError(
-      flagMsg + 'object tested must be ' + str + ', but ' + objType + ' given',
-      undefined,
-      ssfi
-    );
-  }
-};
-;
-return module.exports;
-},
-61: function (require, module, exports) {
-'use strict';
-
-/* !
- * Chai - getFuncName utility
- * Copyright(c) 2012-2016 Jake Luer <jake@alogicalparadox.com>
- * MIT Licensed
- */
-
-/**
- * ### .getFuncName(constructorFn)
- *
- * Returns the name of a function.
- * When a non-function instance is passed, returns `null`.
- * This also includes a polyfill function if `aFunc.name` is not defined.
- *
- * @name getFuncName
- * @param {Function} funct
- * @namespace Utils
- * @api public
- */
-
-var toString = Function.prototype.toString;
-var functionNameMatch = /\s*function(?:\s|\s*\/\*[^(?:*\/)]+\*\/\s*)*([^\s\(\/]+)/;
-function getFuncName(aFunc) {
-  if (typeof aFunc !== 'function') {
-    return null;
-  }
-
-  var name = '';
-  if (typeof Function.prototype.name === 'undefined' && typeof aFunc.name === 'undefined') {
-    // Here we run a polyfill if Function does not support the `name` property and if aFunc.name is not defined
-    var match = toString.call(aFunc).match(functionNameMatch);
-    if (match) {
-      name = match[1];
-    }
-  } else {
-    // If we've got a `name` property we just use it
-    name = aFunc.name;
-  }
-
-  return name;
-}
-
-module.exports = getFuncName;
-;
-return module.exports;
-},
-108: function (require, module, exports) {
-"use strict";
-
-var Event = require(106);
-
-function CustomEvent(type, customData, target) {
-    this.initEvent(type, false, false, target);
-    this.detail = customData.detail || null;
-}
-
-CustomEvent.prototype = new Event();
-
-CustomEvent.prototype.constructor = CustomEvent;
-
-module.exports = CustomEvent;
-;
-return module.exports;
-},
-71: function (require, module, exports) {
-'use strict';
-
-/* !
- * Chai - checkError utility
- * Copyright(c) 2012-2016 Jake Luer <jake@alogicalparadox.com>
- * MIT Licensed
- */
-
-/**
- * ### .checkError
- *
- * Checks that an error conforms to a given set of criteria and/or retrieves information about it.
- *
- * @api public
- */
-
-/**
- * ### .compatibleInstance(thrown, errorLike)
- *
- * Checks if two instances are compatible (strict equal).
- * Returns false if errorLike is not an instance of Error, because instances
- * can only be compatible if they're both error instances.
- *
- * @name compatibleInstance
- * @param {Error} thrown error
- * @param {Error|ErrorConstructor} errorLike object to compare against
- * @namespace Utils
- * @api public
- */
-
-function compatibleInstance(thrown, errorLike) {
-  return errorLike instanceof Error && thrown === errorLike;
-}
-
-/**
- * ### .compatibleConstructor(thrown, errorLike)
- *
- * Checks if two constructors are compatible.
- * This function can receive either an error constructor or
- * an error instance as the `errorLike` argument.
- * Constructors are compatible if they're the same or if one is
- * an instance of another.
- *
- * @name compatibleConstructor
- * @param {Error} thrown error
- * @param {Error|ErrorConstructor} errorLike object to compare against
- * @namespace Utils
- * @api public
- */
-
-function compatibleConstructor(thrown, errorLike) {
-  if (errorLike instanceof Error) {
-    // If `errorLike` is an instance of any error we compare their constructors
-    return thrown.constructor === errorLike.constructor || thrown instanceof errorLike.constructor;
-  } else if (errorLike.prototype instanceof Error || errorLike === Error) {
-    // If `errorLike` is a constructor that inherits from Error, we compare `thrown` to `errorLike` directly
-    return thrown.constructor === errorLike || thrown instanceof errorLike;
-  }
-
-  return false;
-}
-
-/**
- * ### .compatibleMessage(thrown, errMatcher)
- *
- * Checks if an error's message is compatible with a matcher (String or RegExp).
- * If the message contains the String or passes the RegExp test,
- * it is considered compatible.
- *
- * @name compatibleMessage
- * @param {Error} thrown error
- * @param {String|RegExp} errMatcher to look for into the message
- * @namespace Utils
- * @api public
- */
-
-function compatibleMessage(thrown, errMatcher) {
-  var comparisonString = typeof thrown === 'string' ? thrown : thrown.message;
-  if (errMatcher instanceof RegExp) {
-    return errMatcher.test(comparisonString);
-  } else if (typeof errMatcher === 'string') {
-    return comparisonString.indexOf(errMatcher) !== -1; // eslint-disable-line no-magic-numbers
-  }
-
-  return false;
-}
-
-/**
- * ### .getFunctionName(constructorFn)
- *
- * Returns the name of a function.
- * This also includes a polyfill function if `constructorFn.name` is not defined.
- *
- * @name getFunctionName
- * @param {Function} constructorFn
- * @namespace Utils
- * @api private
- */
-
-var functionNameMatch = /\s*function(?:\s|\s*\/\*[^(?:*\/)]+\*\/\s*)*([^\(\/]+)/;
-function getFunctionName(constructorFn) {
-  var name = '';
-  if (typeof constructorFn.name === 'undefined') {
-    // Here we run a polyfill if constructorFn.name is not defined
-    var match = String(constructorFn).match(functionNameMatch);
-    if (match) {
-      name = match[1];
-    }
-  } else {
-    name = constructorFn.name;
-  }
-
-  return name;
-}
-
-/**
- * ### .getConstructorName(errorLike)
- *
- * Gets the constructor name for an Error instance or constructor itself.
- *
- * @name getConstructorName
- * @param {Error|ErrorConstructor} errorLike
- * @namespace Utils
- * @api public
- */
-
-function getConstructorName(errorLike) {
-  var constructorName = errorLike;
-  if (errorLike instanceof Error) {
-    constructorName = getFunctionName(errorLike.constructor);
-  } else if (typeof errorLike === 'function') {
-    // If `err` is not an instance of Error it is an error constructor itself or another function.
-    // If we've got a common function we get its name, otherwise we may need to create a new instance
-    // of the error just in case it's a poorly-constructed error. Please see chaijs/chai/issues/45 to know more.
-    constructorName = getFunctionName(errorLike).trim() ||
-        getFunctionName(new errorLike()); // eslint-disable-line new-cap
-  }
-
-  return constructorName;
-}
-
-/**
- * ### .getMessage(errorLike)
- *
- * Gets the error message from an error.
- * If `err` is a String itself, we return it.
- * If the error has no message, we return an empty string.
- *
- * @name getMessage
- * @param {Error|String} errorLike
- * @namespace Utils
- * @api public
- */
-
-function getMessage(errorLike) {
-  var msg = '';
-  if (errorLike && errorLike.message) {
-    msg = errorLike.message;
-  } else if (typeof errorLike === 'string') {
-    msg = errorLike;
-  }
-
-  return msg;
-}
-
-module.exports = {
-  compatibleInstance: compatibleInstance,
-  compatibleConstructor: compatibleConstructor,
-  compatibleMessage: compatibleMessage,
-  getMessage: getMessage,
-  getConstructorName: getConstructorName,
-};
-;
-return module.exports;
-},
-72: function (require, module, exports) {
-var config = require(21);
-var flag = require(58);
-var getProperties = require(89);
-var isProxyEnabled = require(74);
-
-/*!
- * Chai - proxify utility
- * Copyright(c) 2012-2014 Jake Luer <jake@alogicalparadox.com>
- * MIT Licensed
- */
-
-/**
- * ### .proxify(object)
- *
- * Return a proxy of given object that throws an error when a non-existent
- * property is read. By default, the root cause is assumed to be a misspelled
- * property, and thus an attempt is made to offer a reasonable suggestion from
- * the list of existing properties. However, if a nonChainableMethodName is
- * provided, then the root cause is instead a failure to invoke a non-chainable
- * method prior to reading the non-existent property.
- * 
- * If proxies are unsupported or disabled via the user's Chai config, then
- * return object without modification.
- *
- * @param {Object} obj
- * @param {String} nonChainableMethodName
- * @namespace Utils
- * @name proxify
- */
-
-var builtins = ['__flags', '__methods', '_obj', 'assert'];
-
-module.exports = function proxify(obj, nonChainableMethodName) {
-  if (!isProxyEnabled()) return obj;
-
-  return new Proxy(obj, {
-    get: function proxyGetter(target, property) {
-      // This check is here because we should not throw errors on Symbol properties
-      // such as `Symbol.toStringTag`.
-      // The values for which an error should be thrown can be configured using
-      // the `config.proxyExcludedKeys` setting.
-      if (typeof property === 'string' &&
-          config.proxyExcludedKeys.indexOf(property) === -1 &&
-          !Reflect.has(target, property)) {
-        // Special message for invalid property access of non-chainable methods.
-        if (nonChainableMethodName) {
-          throw Error('Invalid Chai property: ' + nonChainableMethodName + '.' +
-            property + '. See docs for proper usage of "' +
-            nonChainableMethodName + '".');
-        }
-
-        var orderedProperties = getProperties(target).filter(function(property) {
-          return !Object.prototype.hasOwnProperty(property) &&
-            builtins.indexOf(property) === -1;
-        }).sort(function(a, b) {
-          return stringDistance(property, a) - stringDistance(property, b);
-        });
-
-        if (orderedProperties.length &&
-            stringDistance(orderedProperties[0], property) < 4) {
-          // If the property is reasonably close to an existing Chai property,
-          // suggest that property to the user.
-          throw Error('Invalid Chai property: ' + property +
-            '. Did you mean "' + orderedProperties[0] + '"?');
-        } else {
-          throw Error('Invalid Chai property: ' + property);
-        }
-      }
-
-      // Use this proxy getter as the starting point for removing implementation
-      // frames from the stack trace of a failed assertion. For property
-      // assertions, this prevents the proxy getter from showing up in the stack
-      // trace since it's invoked before the property getter. For method and
-      // chainable method assertions, this flag will end up getting changed to
-      // the method wrapper, which is good since this frame will no longer be in
-      // the stack once the method is invoked. Note that Chai builtin assertion
-      // properties such as `__flags` are skipped since this is only meant to
-      // capture the starting point of an assertion. This step is also skipped
-      // if the `lockSsfi` flag is set, thus indicating that this assertion is
-      // being called from within another assertion. In that case, the `ssfi`
-      // flag is already set to the outer assertion's starting point.
-      if (builtins.indexOf(property) === -1 && !flag(target, 'lockSsfi')) {
-        flag(target, 'ssfi', proxyGetter);
-      }
-
-      return Reflect.get(target, property);
-    }
-  });
-};
-
-/**
- * # stringDistance(strA, strB)
- * Return the Levenshtein distance between two strings.
- * @param {string} strA
- * @param {string} strB
- * @return {number} the string distance between strA and strB
- * @api private
- */
-
-function stringDistance(strA, strB, memo) {
-  if (!memo) {
-    // `memo` is a two-dimensional array containing a cache of distances
-    // memo[i][j] is the distance between strA.slice(0, i) and
-    // strB.slice(0, j).
-    memo = [];
-    for (var i = 0; i <= strA.length; i++) {
-      memo[i] = [];
-    }
-  }
-
-  if (!memo[strA.length] || !memo[strA.length][strB.length]) {
-    if (strA.length === 0 || strB.length === 0) {
-      memo[strA.length][strB.length] = Math.max(strA.length, strB.length);
-    } else {
-      memo[strA.length][strB.length] = Math.min(
-        stringDistance(strA.slice(0, -1), strB, memo) + 1,
-        stringDistance(strA, strB.slice(0, -1), memo) + 1,
-        stringDistance(strA.slice(0, -1), strB.slice(0, -1), memo) +
-          (strA.slice(-1) === strB.slice(-1) ? 0 : 1)
-      );
-    }
-  }
-
-  return memo[strA.length][strB.length];
-}
-;
-return module.exports;
-},
-4: function (require, module, exports) {
-/*!
- * chai
- * Copyright(c) 2011-2014 Jake Luer <jake@alogicalparadox.com>
- * MIT Licensed
- */
-
-var used = [];
-
-/*!
- * Chai version
- */
-
-exports.version = '4.1.2';
-
-/*!
- * Assertion Error
- */
-
-exports.AssertionError = require(19);
-
-/*!
- * Utils for plugins (not exported)
- */
-
-var util = require(20);
-
-/**
- * # .use(function)
- *
- * Provides a way to extend the internals of Chai.
- *
- * @param {Function}
- * @returns {this} for chaining
- * @api public
- */
-
-exports.use = function (fn) {
-  if (!~used.indexOf(fn)) {
-    fn(exports, util);
-    used.push(fn);
-  }
-
-  return exports;
-};
-
-/*!
- * Utility Functions
- */
-
-exports.util = util;
-
-/*!
- * Configuration
- */
-
-var config = require(21);
-exports.config = config;
-
-/*!
- * Primary `Assertion` prototype
- */
-
-var assertion = require(22);
-exports.use(assertion);
-
-/*!
- * Core Assertions
- */
-
-var core = require(23);
-exports.use(core);
-
-/*!
- * Expect interface
- */
-
-var expect = require(24);
-exports.use(expect);
-
-/*!
- * Should interface
- */
-
-var should = require(25);
-exports.use(should);
-
-/*!
- * Assert interface
- */
-
-var assert = require(26);
-exports.use(assert);
-;
-return module.exports;
-},
-104: function (require, module, exports) {
-module.exports = Array.isArray || function (arr) {
-  return Object.prototype.toString.call(arr) == '[object Array]';
-};
-;
-return module.exports;
-},
-86: function (require, module, exports) {
-module.exports = extend;
-
-/*
-  var obj = {a: 3, b: 5};
-  extend(obj, {a: 4, c: 8}); // {a: 4, b: 5, c: 8}
-  obj; // {a: 4, b: 5, c: 8}
-
-  var obj = {a: 3, b: 5};
-  extend({}, obj, {a: 4, c: 8}); // {a: 4, b: 5, c: 8}
-  obj; // {a: 3, b: 5}
-
-  var arr = [1, 2, 3];
-  var obj = {a: 3, b: 5};
-  extend(obj, {c: arr}); // {a: 3, b: 5, c: [1, 2, 3]}
-  arr.push[4];
-  obj; // {a: 3, b: 5, c: [1, 2, 3, 4]}
-
-  var arr = [1, 2, 3];
-  var obj = {a: 3, b: 5};
-  extend(true, obj, {c: arr}); // {a: 3, b: 5, c: [1, 2, 3]}
-  arr.push[4];
-  obj; // {a: 3, b: 5, c: [1, 2, 3]}
-*/
-
-function extend(obj1, obj2 /*, [objn]*/) {
-  var args = [].slice.call(arguments);
-  var deep = false;
-  if (typeof args[0] === 'boolean') {
-    deep = args.shift();
-  }
-  var result = args[0];
-  var extenders = args.slice(1);
-  var len = extenders.length;
-  for (var i = 0; i < len; i++) {
-    var extender = extenders[i];
-    for (var key in extender) {
-      // include prototype properties
-      var value = extender[key];
-      if (deep && value && (typeof value == 'object')) {
-        var base = Array.isArray(value) ? [] : {};
-        result[key] = extend(true, result[key] || base, value);
-      } else {
-        result[key] = value;
-      }
-    }
-  }
-  return result;
-}
-;
-return module.exports;
-},
-75: function (require, module, exports) {
-/*!
- * Chai - isNaN utility
- * Copyright(c) 2012-2015 Sakthipriyan Vairamani <thechargingvolcano@gmail.com>
- * MIT Licensed
- */
-
-/**
- * ### .isNaN(value)
- *
- * Checks if the given value is NaN or not.
- *
- *     utils.isNaN(NaN); // true
- *
- * @param {Value} The value which has to be checked if it is NaN
- * @name isNaN
- * @api private
- */
-
-function isNaN(value) {
-  // Refer http://www.ecma-international.org/ecma-262/6.0/#sec-isnan-number
-  // section's NOTE.
-  return value !== value;
-}
-
-// If ECMAScript 6's Number.isNaN is present, prefer that.
-module.exports = Number.isNaN || isNaN;
-;
-return module.exports;
-},
 0: function (require, module, exports) {
 var chai, expect, getHash, runAfterDelay, setHash, sinon;
 
@@ -27513,11 +26876,13 @@ setHash = function(targetHash, delay, extra) {
   }
   return new Promise(function(resolve) {
     var clock, handler, router;
-    if (getHash() === getHash(targetHash)) {
-      return resolve();
+    if (typeof targetHash !== 'function') {
+      if (getHash() === getHash(targetHash)) {
+        return resolve();
+      }
+      targetHash = getHash(targetHash);
+      clock = extra.clock, router = extra.router;
     }
-    targetHash = getHash(targetHash);
-    clock = extra.clock, router = extra.router;
     handler = function() {
       window.removeEventListener('hashchange', handler);
       Promise.resolve().then(function() {
@@ -27536,7 +26901,11 @@ setHash = function(targetHash, delay, extra) {
       }
     };
     window.addEventListener('hashchange', handler);
-    return window.location.hash = targetHash;
+    if (typeof targetHash === 'function') {
+      return targetHash();
+    } else {
+      return window.location.hash = targetHash;
+    }
   });
 };
 
@@ -28428,103 +27797,151 @@ suite("Routing.JS", function() {
         });
       });
     });
-    return test("nested object values", function() {
-      var count, query, register, router;
-      count = {};
-      query = {};
-      router = Routing.Router();
-      register = function(path) {
-        count[path] = 0;
-        query[path] = null;
-        return router.map(path).to(function() {
-          count[path]++;
-          return query[path] = this.query;
-        });
-      };
-      return Promise.resolve().then(function() {
-        register('/');
-        register('/abc');
-        register('/def');
-        return router.listen();
-      }).delay().then(function() {
-        expect(count).to.eql({
-          '/': 1,
-          '/abc': 0,
-          '/def': 0
-        });
-        expect(query).to.eql({
-          '/': {},
-          '/abc': null,
-          '/def': null
-        });
-        return setHash('/abc?item=23&names=["abc",123, "def"]');
-      }).then(function() {
-        expect(count).to.eql({
-          '/': 1,
-          '/abc': 1,
-          '/def': 0
-        });
-        expect(query).to.eql({
-          '/': {},
-          '/abc': {
+    return suite("nested object values", function() {
+      test("basic", function() {
+        var count, query, router;
+        count = 0;
+        query = {};
+        router = Routing.Router();
+        return Promise.resolve().then(function() {
+          return router.map('/').to(function() {
+            count++;
+            return query = this.query;
+          }).listen();
+        }).delay().then(function() {
+          expect(count).to.equal(1);
+          expect(query).to.eql({});
+          return setHash('/?item=23&names=["abc",123, "def"]');
+        }).then(function() {
+          expect(count).to.equal(2);
+          expect(query).to.eql({
             item: '23',
             names: ['abc', 123, 'def']
-          },
-          '/def': null
-        });
-        return setHash('/def?values=[[1,2,3],  [4,5,6]]&item=[]');
-      }).then(function() {
-        expect(count).to.eql({
-          '/': 1,
-          '/abc': 1,
-          '/def': 1
-        });
-        expect(query).to.eql({
-          '/': {},
-          '/abc': {
-            item: '23',
-            names: ['abc', 123, 'def']
-          },
-          '/def': {
+          });
+          return setHash('/?values=[[1,2,3],  [4,5,6]]&item=[]');
+        }).then(function() {
+          expect(count).to.equal(3);
+          expect(query).to.eql({
             item: [],
             values: [[1, 2, 3], [4, 5, 6]]
-          }
-        });
-        return setHash("/?level1=" + (encodeURIComponent(JSON.stringify({
-          level2: {
-            level3: ['level4']
-          }
-        }))));
-      }).then(function() {
-        expect(count).to.eql({
-          '/': 2,
-          '/abc': 1,
-          '/def': 1
-        });
-        expect(query['/']).to.eql({
-          level1: {
+          });
+          return setHash("/?level1=" + (encodeURIComponent(JSON.stringify({
             level2: {
               level3: ['level4']
             }
-          }
-        });
-        return setHash("/abc?level1=" + (JSON.stringify({
-          level2: {
-            level3: ['level4']
-          }
-        })));
-      }).then(function() {
-        expect(count).to.eql({
-          '/': 2,
-          '/abc': 2,
-          '/def': 1
-        });
-        return expect(query['/abc']).to.eql({
-          level1: {
+          }))));
+        }).then(function() {
+          expect(count).to.equal(4);
+          expect(query).to.eql({
+            level1: {
+              level2: {
+                level3: ['level4']
+              }
+            }
+          });
+          return setHash("/?level1=" + (JSON.stringify({
             level2: {
               level3: ['level4']
             }
+          })));
+        }).then(function() {
+          expect(count).to.equal(5);
+          return expect(query).to.eql({
+            level1: {
+              level2: {
+                level3: ['level4']
+              }
+            }
+          });
+        });
+      });
+      return test("custom parser/serializer", function() {
+        var count, dates, query, router;
+        count = 0;
+        query = {};
+        dates = [new Date, new Date(Date.now() - 1e5)];
+        router = Routing.Router({
+          queryParser: function(key, value) {
+            var result;
+            if (key === 'myNumber') {
+              return parseInt(value, 16);
+            }
+            if (typeof value === 'string' && value.slice(0, 5) === 'Date:') {
+              result = new Date(isNaN(value.slice(5)) ? value.slice(5) : value.slice(5) * 1);
+              return result;
+            }
+            return value;
+          },
+          querySerializer: function(key, value) {
+            if (key === 'myNumber') {
+              return value.toString(16);
+            }
+            if (value instanceof Date) {
+              return 'Date:' + value.toISOString();
+            }
+            return value;
           }
+        });
+        return Promise.resolve().then(function() {
+          return router.map('/').to(function() {
+            count++;
+            return query = this.query;
+          }).listen();
+        }).delay().then(function() {
+          expect(count).to.equal(1);
+          expect(query).to.eql({});
+          return setHash("/?date=" + ('Date:' + dates[0].toISOString()));
+        }).then(function() {
+          expect(count).to.equal(2);
+          expect(query.date instanceof Date).to.be["true"];
+          expect(query.date.valueOf()).to.equal(dates[0].valueOf());
+          return setHash("/?myNumber=" + (12345..toString(16)) + "&dates=" + (JSON.stringify({
+            a: 'Date:' + dates[0].valueOf(),
+            b: 'Date:' + dates[1].toISOString()
+          })));
+        }).then(function() {
+          expect(count).to.equal(3);
+          expect(query.myNumber).to.equal(12345);
+          expect(Object.keys(query.dates)).to.eql(['a', 'b']);
+          expect(query.dates.a.valueOf()).to.equal(dates[0].valueOf());
+          expect(query.dates.b.valueOf()).to.equal(dates[1].valueOf());
+          return setHash("/?myNumber=" + (12345..toString(16)) + "&values=" + (JSON.stringify({
+            myNumber: 12345..toString(16)
+          })));
+        }).then(function() {
+          expect(count).to.equal(4);
+          expect(query).to.eql({
+            myNumber: 12345,
+            values: {
+              myNumber: 12345
+            }
+          });
+          return setHash(function() {
+            var orig;
+            orig = Date.prototype.toJSON;
+            delete Date.prototype.toJSON;
+            router.setQuery({
+              dates: dates,
+              date: dates[0],
+              values: {
+                a: 12345,
+                myNumber: 12345
+              }
+            });
+            return Date.prototype.toJSON = orig;
+          });
+        }).then(function() {
+          expect(count).to.equal(5);
+          expect(typeof query.date).to.equal('object');
+          expect(typeof query.dates).to.equal('object');
+          expect(typeof query.dates[0]).to.equal('object');
+          expect(typeof query.values).to.equal('object');
+          expect(typeof query.values.a).to.equal('number');
+          expect(query.date.valueOf()).to.equal(dates[0].valueOf());
+          expect(query.dates[0].valueOf()).to.equal(dates[0].valueOf());
+          expect(query.dates[1].valueOf()).to.equal(dates[1].valueOf());
+          expect(query.values.a).to.equal(12345);
+          return expect(query.values.myNumber).to.equal(12345);
         });
       });
     });
@@ -30296,6 +29713,643 @@ suite("Routing.JS", function() {
   });
 });
 
+;
+return module.exports;
+},
+77: function (require, module, exports) {
+(function () {
+var process = require(79);
+"use strict";
+
+var canColor = typeof process !== "undefined";
+
+function colorize(str, color) {
+    if (!canColor) {
+        return str;
+    }
+
+    return "\x1b[" + color + "m" + str + "\x1b[0m";
+}
+
+exports.red = function (str) {
+    return colorize(str, 31);
+};
+
+exports.green = function (str) {
+    return colorize(str, 32);
+};
+
+}).call(this);
+return module.exports;
+},
+53: function (require, module, exports) {
+/*!
+ * Chai - expectTypes utility
+ * Copyright(c) 2012-2014 Jake Luer <jake@alogicalparadox.com>
+ * MIT Licensed
+ */
+
+/**
+ * ### .expectTypes(obj, types)
+ *
+ * Ensures that the object being tested against is of a valid type.
+ *
+ *     utils.expectTypes(this, ['array', 'object', 'string']);
+ *
+ * @param {Mixed} obj constructed Assertion
+ * @param {Array} type A list of allowed types for this assertion
+ * @namespace Utils
+ * @name expectTypes
+ * @api public
+ */
+
+var AssertionError = require(19);
+var flag = require(58);
+var type = require(52);
+
+module.exports = function expectTypes(obj, types) {
+  var flagMsg = flag(obj, 'message');
+  var ssfi = flag(obj, 'ssfi');
+
+  flagMsg = flagMsg ? flagMsg + ': ' : '';
+
+  obj = flag(obj, 'object');
+  types = types.map(function (t) { return t.toLowerCase(); });
+  types.sort();
+
+  // Transforms ['lorem', 'ipsum'] into 'a lorem, or an ipsum'
+  var str = types.map(function (t, index) {
+    var art = ~[ 'a', 'e', 'i', 'o', 'u' ].indexOf(t.charAt(0)) ? 'an' : 'a';
+    var or = types.length > 1 && index === types.length - 1 ? 'or ' : '';
+    return or + art + ' ' + t;
+  }).join(', ');
+
+  var objType = type(obj).toLowerCase();
+
+  if (!types.some(function (expected) { return objType === expected; })) {
+    throw new AssertionError(
+      flagMsg + 'object tested must be ' + str + ', but ' + objType + ' given',
+      undefined,
+      ssfi
+    );
+  }
+};
+;
+return module.exports;
+},
+61: function (require, module, exports) {
+'use strict';
+
+/* !
+ * Chai - getFuncName utility
+ * Copyright(c) 2012-2016 Jake Luer <jake@alogicalparadox.com>
+ * MIT Licensed
+ */
+
+/**
+ * ### .getFuncName(constructorFn)
+ *
+ * Returns the name of a function.
+ * When a non-function instance is passed, returns `null`.
+ * This also includes a polyfill function if `aFunc.name` is not defined.
+ *
+ * @name getFuncName
+ * @param {Function} funct
+ * @namespace Utils
+ * @api public
+ */
+
+var toString = Function.prototype.toString;
+var functionNameMatch = /\s*function(?:\s|\s*\/\*[^(?:*\/)]+\*\/\s*)*([^\s\(\/]+)/;
+function getFuncName(aFunc) {
+  if (typeof aFunc !== 'function') {
+    return null;
+  }
+
+  var name = '';
+  if (typeof Function.prototype.name === 'undefined' && typeof aFunc.name === 'undefined') {
+    // Here we run a polyfill if Function does not support the `name` property and if aFunc.name is not defined
+    var match = toString.call(aFunc).match(functionNameMatch);
+    if (match) {
+      name = match[1];
+    }
+  } else {
+    // If we've got a `name` property we just use it
+    name = aFunc.name;
+  }
+
+  return name;
+}
+
+module.exports = getFuncName;
+;
+return module.exports;
+},
+108: function (require, module, exports) {
+"use strict";
+
+var Event = require(106);
+
+function CustomEvent(type, customData, target) {
+    this.initEvent(type, false, false, target);
+    this.detail = customData.detail || null;
+}
+
+CustomEvent.prototype = new Event();
+
+CustomEvent.prototype.constructor = CustomEvent;
+
+module.exports = CustomEvent;
+;
+return module.exports;
+},
+71: function (require, module, exports) {
+'use strict';
+
+/* !
+ * Chai - checkError utility
+ * Copyright(c) 2012-2016 Jake Luer <jake@alogicalparadox.com>
+ * MIT Licensed
+ */
+
+/**
+ * ### .checkError
+ *
+ * Checks that an error conforms to a given set of criteria and/or retrieves information about it.
+ *
+ * @api public
+ */
+
+/**
+ * ### .compatibleInstance(thrown, errorLike)
+ *
+ * Checks if two instances are compatible (strict equal).
+ * Returns false if errorLike is not an instance of Error, because instances
+ * can only be compatible if they're both error instances.
+ *
+ * @name compatibleInstance
+ * @param {Error} thrown error
+ * @param {Error|ErrorConstructor} errorLike object to compare against
+ * @namespace Utils
+ * @api public
+ */
+
+function compatibleInstance(thrown, errorLike) {
+  return errorLike instanceof Error && thrown === errorLike;
+}
+
+/**
+ * ### .compatibleConstructor(thrown, errorLike)
+ *
+ * Checks if two constructors are compatible.
+ * This function can receive either an error constructor or
+ * an error instance as the `errorLike` argument.
+ * Constructors are compatible if they're the same or if one is
+ * an instance of another.
+ *
+ * @name compatibleConstructor
+ * @param {Error} thrown error
+ * @param {Error|ErrorConstructor} errorLike object to compare against
+ * @namespace Utils
+ * @api public
+ */
+
+function compatibleConstructor(thrown, errorLike) {
+  if (errorLike instanceof Error) {
+    // If `errorLike` is an instance of any error we compare their constructors
+    return thrown.constructor === errorLike.constructor || thrown instanceof errorLike.constructor;
+  } else if (errorLike.prototype instanceof Error || errorLike === Error) {
+    // If `errorLike` is a constructor that inherits from Error, we compare `thrown` to `errorLike` directly
+    return thrown.constructor === errorLike || thrown instanceof errorLike;
+  }
+
+  return false;
+}
+
+/**
+ * ### .compatibleMessage(thrown, errMatcher)
+ *
+ * Checks if an error's message is compatible with a matcher (String or RegExp).
+ * If the message contains the String or passes the RegExp test,
+ * it is considered compatible.
+ *
+ * @name compatibleMessage
+ * @param {Error} thrown error
+ * @param {String|RegExp} errMatcher to look for into the message
+ * @namespace Utils
+ * @api public
+ */
+
+function compatibleMessage(thrown, errMatcher) {
+  var comparisonString = typeof thrown === 'string' ? thrown : thrown.message;
+  if (errMatcher instanceof RegExp) {
+    return errMatcher.test(comparisonString);
+  } else if (typeof errMatcher === 'string') {
+    return comparisonString.indexOf(errMatcher) !== -1; // eslint-disable-line no-magic-numbers
+  }
+
+  return false;
+}
+
+/**
+ * ### .getFunctionName(constructorFn)
+ *
+ * Returns the name of a function.
+ * This also includes a polyfill function if `constructorFn.name` is not defined.
+ *
+ * @name getFunctionName
+ * @param {Function} constructorFn
+ * @namespace Utils
+ * @api private
+ */
+
+var functionNameMatch = /\s*function(?:\s|\s*\/\*[^(?:*\/)]+\*\/\s*)*([^\(\/]+)/;
+function getFunctionName(constructorFn) {
+  var name = '';
+  if (typeof constructorFn.name === 'undefined') {
+    // Here we run a polyfill if constructorFn.name is not defined
+    var match = String(constructorFn).match(functionNameMatch);
+    if (match) {
+      name = match[1];
+    }
+  } else {
+    name = constructorFn.name;
+  }
+
+  return name;
+}
+
+/**
+ * ### .getConstructorName(errorLike)
+ *
+ * Gets the constructor name for an Error instance or constructor itself.
+ *
+ * @name getConstructorName
+ * @param {Error|ErrorConstructor} errorLike
+ * @namespace Utils
+ * @api public
+ */
+
+function getConstructorName(errorLike) {
+  var constructorName = errorLike;
+  if (errorLike instanceof Error) {
+    constructorName = getFunctionName(errorLike.constructor);
+  } else if (typeof errorLike === 'function') {
+    // If `err` is not an instance of Error it is an error constructor itself or another function.
+    // If we've got a common function we get its name, otherwise we may need to create a new instance
+    // of the error just in case it's a poorly-constructed error. Please see chaijs/chai/issues/45 to know more.
+    constructorName = getFunctionName(errorLike).trim() ||
+        getFunctionName(new errorLike()); // eslint-disable-line new-cap
+  }
+
+  return constructorName;
+}
+
+/**
+ * ### .getMessage(errorLike)
+ *
+ * Gets the error message from an error.
+ * If `err` is a String itself, we return it.
+ * If the error has no message, we return an empty string.
+ *
+ * @name getMessage
+ * @param {Error|String} errorLike
+ * @namespace Utils
+ * @api public
+ */
+
+function getMessage(errorLike) {
+  var msg = '';
+  if (errorLike && errorLike.message) {
+    msg = errorLike.message;
+  } else if (typeof errorLike === 'string') {
+    msg = errorLike;
+  }
+
+  return msg;
+}
+
+module.exports = {
+  compatibleInstance: compatibleInstance,
+  compatibleConstructor: compatibleConstructor,
+  compatibleMessage: compatibleMessage,
+  getMessage: getMessage,
+  getConstructorName: getConstructorName,
+};
+;
+return module.exports;
+},
+72: function (require, module, exports) {
+var config = require(21);
+var flag = require(58);
+var getProperties = require(89);
+var isProxyEnabled = require(74);
+
+/*!
+ * Chai - proxify utility
+ * Copyright(c) 2012-2014 Jake Luer <jake@alogicalparadox.com>
+ * MIT Licensed
+ */
+
+/**
+ * ### .proxify(object)
+ *
+ * Return a proxy of given object that throws an error when a non-existent
+ * property is read. By default, the root cause is assumed to be a misspelled
+ * property, and thus an attempt is made to offer a reasonable suggestion from
+ * the list of existing properties. However, if a nonChainableMethodName is
+ * provided, then the root cause is instead a failure to invoke a non-chainable
+ * method prior to reading the non-existent property.
+ * 
+ * If proxies are unsupported or disabled via the user's Chai config, then
+ * return object without modification.
+ *
+ * @param {Object} obj
+ * @param {String} nonChainableMethodName
+ * @namespace Utils
+ * @name proxify
+ */
+
+var builtins = ['__flags', '__methods', '_obj', 'assert'];
+
+module.exports = function proxify(obj, nonChainableMethodName) {
+  if (!isProxyEnabled()) return obj;
+
+  return new Proxy(obj, {
+    get: function proxyGetter(target, property) {
+      // This check is here because we should not throw errors on Symbol properties
+      // such as `Symbol.toStringTag`.
+      // The values for which an error should be thrown can be configured using
+      // the `config.proxyExcludedKeys` setting.
+      if (typeof property === 'string' &&
+          config.proxyExcludedKeys.indexOf(property) === -1 &&
+          !Reflect.has(target, property)) {
+        // Special message for invalid property access of non-chainable methods.
+        if (nonChainableMethodName) {
+          throw Error('Invalid Chai property: ' + nonChainableMethodName + '.' +
+            property + '. See docs for proper usage of "' +
+            nonChainableMethodName + '".');
+        }
+
+        var orderedProperties = getProperties(target).filter(function(property) {
+          return !Object.prototype.hasOwnProperty(property) &&
+            builtins.indexOf(property) === -1;
+        }).sort(function(a, b) {
+          return stringDistance(property, a) - stringDistance(property, b);
+        });
+
+        if (orderedProperties.length &&
+            stringDistance(orderedProperties[0], property) < 4) {
+          // If the property is reasonably close to an existing Chai property,
+          // suggest that property to the user.
+          throw Error('Invalid Chai property: ' + property +
+            '. Did you mean "' + orderedProperties[0] + '"?');
+        } else {
+          throw Error('Invalid Chai property: ' + property);
+        }
+      }
+
+      // Use this proxy getter as the starting point for removing implementation
+      // frames from the stack trace of a failed assertion. For property
+      // assertions, this prevents the proxy getter from showing up in the stack
+      // trace since it's invoked before the property getter. For method and
+      // chainable method assertions, this flag will end up getting changed to
+      // the method wrapper, which is good since this frame will no longer be in
+      // the stack once the method is invoked. Note that Chai builtin assertion
+      // properties such as `__flags` are skipped since this is only meant to
+      // capture the starting point of an assertion. This step is also skipped
+      // if the `lockSsfi` flag is set, thus indicating that this assertion is
+      // being called from within another assertion. In that case, the `ssfi`
+      // flag is already set to the outer assertion's starting point.
+      if (builtins.indexOf(property) === -1 && !flag(target, 'lockSsfi')) {
+        flag(target, 'ssfi', proxyGetter);
+      }
+
+      return Reflect.get(target, property);
+    }
+  });
+};
+
+/**
+ * # stringDistance(strA, strB)
+ * Return the Levenshtein distance between two strings.
+ * @param {string} strA
+ * @param {string} strB
+ * @return {number} the string distance between strA and strB
+ * @api private
+ */
+
+function stringDistance(strA, strB, memo) {
+  if (!memo) {
+    // `memo` is a two-dimensional array containing a cache of distances
+    // memo[i][j] is the distance between strA.slice(0, i) and
+    // strB.slice(0, j).
+    memo = [];
+    for (var i = 0; i <= strA.length; i++) {
+      memo[i] = [];
+    }
+  }
+
+  if (!memo[strA.length] || !memo[strA.length][strB.length]) {
+    if (strA.length === 0 || strB.length === 0) {
+      memo[strA.length][strB.length] = Math.max(strA.length, strB.length);
+    } else {
+      memo[strA.length][strB.length] = Math.min(
+        stringDistance(strA.slice(0, -1), strB, memo) + 1,
+        stringDistance(strA, strB.slice(0, -1), memo) + 1,
+        stringDistance(strA.slice(0, -1), strB.slice(0, -1), memo) +
+          (strA.slice(-1) === strB.slice(-1) ? 0 : 1)
+      );
+    }
+  }
+
+  return memo[strA.length][strB.length];
+}
+;
+return module.exports;
+},
+4: function (require, module, exports) {
+/*!
+ * chai
+ * Copyright(c) 2011-2014 Jake Luer <jake@alogicalparadox.com>
+ * MIT Licensed
+ */
+
+var used = [];
+
+/*!
+ * Chai version
+ */
+
+exports.version = '4.1.2';
+
+/*!
+ * Assertion Error
+ */
+
+exports.AssertionError = require(19);
+
+/*!
+ * Utils for plugins (not exported)
+ */
+
+var util = require(20);
+
+/**
+ * # .use(function)
+ *
+ * Provides a way to extend the internals of Chai.
+ *
+ * @param {Function}
+ * @returns {this} for chaining
+ * @api public
+ */
+
+exports.use = function (fn) {
+  if (!~used.indexOf(fn)) {
+    fn(exports, util);
+    used.push(fn);
+  }
+
+  return exports;
+};
+
+/*!
+ * Utility Functions
+ */
+
+exports.util = util;
+
+/*!
+ * Configuration
+ */
+
+var config = require(21);
+exports.config = config;
+
+/*!
+ * Primary `Assertion` prototype
+ */
+
+var assertion = require(22);
+exports.use(assertion);
+
+/*!
+ * Core Assertions
+ */
+
+var core = require(23);
+exports.use(core);
+
+/*!
+ * Expect interface
+ */
+
+var expect = require(24);
+exports.use(expect);
+
+/*!
+ * Should interface
+ */
+
+var should = require(25);
+exports.use(should);
+
+/*!
+ * Assert interface
+ */
+
+var assert = require(26);
+exports.use(assert);
+;
+return module.exports;
+},
+104: function (require, module, exports) {
+module.exports = Array.isArray || function (arr) {
+  return Object.prototype.toString.call(arr) == '[object Array]';
+};
+;
+return module.exports;
+},
+86: function (require, module, exports) {
+module.exports = extend;
+
+/*
+  var obj = {a: 3, b: 5};
+  extend(obj, {a: 4, c: 8}); // {a: 4, b: 5, c: 8}
+  obj; // {a: 4, b: 5, c: 8}
+
+  var obj = {a: 3, b: 5};
+  extend({}, obj, {a: 4, c: 8}); // {a: 4, b: 5, c: 8}
+  obj; // {a: 3, b: 5}
+
+  var arr = [1, 2, 3];
+  var obj = {a: 3, b: 5};
+  extend(obj, {c: arr}); // {a: 3, b: 5, c: [1, 2, 3]}
+  arr.push[4];
+  obj; // {a: 3, b: 5, c: [1, 2, 3, 4]}
+
+  var arr = [1, 2, 3];
+  var obj = {a: 3, b: 5};
+  extend(true, obj, {c: arr}); // {a: 3, b: 5, c: [1, 2, 3]}
+  arr.push[4];
+  obj; // {a: 3, b: 5, c: [1, 2, 3]}
+*/
+
+function extend(obj1, obj2 /*, [objn]*/) {
+  var args = [].slice.call(arguments);
+  var deep = false;
+  if (typeof args[0] === 'boolean') {
+    deep = args.shift();
+  }
+  var result = args[0];
+  var extenders = args.slice(1);
+  var len = extenders.length;
+  for (var i = 0; i < len; i++) {
+    var extender = extenders[i];
+    for (var key in extender) {
+      // include prototype properties
+      var value = extender[key];
+      if (deep && value && (typeof value == 'object')) {
+        var base = Array.isArray(value) ? [] : {};
+        result[key] = extend(true, result[key] || base, value);
+      } else {
+        result[key] = value;
+      }
+    }
+  }
+  return result;
+}
+;
+return module.exports;
+},
+75: function (require, module, exports) {
+/*!
+ * Chai - isNaN utility
+ * Copyright(c) 2012-2015 Sakthipriyan Vairamani <thechargingvolcano@gmail.com>
+ * MIT Licensed
+ */
+
+/**
+ * ### .isNaN(value)
+ *
+ * Checks if the given value is NaN or not.
+ *
+ *     utils.isNaN(NaN); // true
+ *
+ * @param {Value} The value which has to be checked if it is NaN
+ * @name isNaN
+ * @api private
+ */
+
+function isNaN(value) {
+  // Refer http://www.ecma-international.org/ecma-262/6.0/#sec-isnan-number
+  // section's NOTE.
+  return value !== value;
+}
+
+// If ECMAScript 6's Number.isNaN is present, prefer that.
+module.exports = Number.isNaN || isNaN;
 ;
 return module.exports;
 },

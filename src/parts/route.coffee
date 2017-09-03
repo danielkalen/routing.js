@@ -51,7 +51,7 @@ module.exports = class Route
 		debug "running '#{@path.original}'"
 		@_isActive = true
 		@_context.params = @_resolveParams(path)
-		@_context.query = helpers.parseQuery(path)
+		@_context.query = helpers.parseQuery(path, @router.settings.queryParser)
 
 		Promise.resolve(@_invokeAction(@_enterAction, prevPath, prevRoute))
 			.then ()=> Promise.all @_actions.map (action)=> @_invokeAction(action, prevPath, prevRoute)

@@ -3,8 +3,8 @@ helpers = import './helpers'
 debug = (import 'debug')('routing:router')
 
 class Router
-	constructor: (@timeout, @ID)->
-		@timeout = 2500 if isNaN(@timeout)
+	constructor: (@settings, @ID)->
+		@settings.timeout = 2500 if isNaN(@settings.timeout)
 		@listening = false
 		@routes = []
 		@_priority = 1
@@ -48,7 +48,7 @@ class Router
 
 
 	_matchPath: (path)->
-		path = helpers.removeQuery(path)
+		path = helpers.removeQuery(path) or '/'
 		matchingRoute = @_cache[path]
 
 		if not matchingRoute
@@ -109,8 +109,8 @@ class Router
 			activeRoutes.length = 0
 
 			setTimeout ()=>
-				reject(new Error "TimeoutError: '#{path}' failed to load within #{@timeout}ms (Router ##{@ID})")
-			, @timeout
+				reject(new Error "TimeoutError: '#{path}' failed to load within #{@settings.timeout}ms (Router ##{@ID})")
+			, @settings.timeout
 
 			debug "starting route transition to '#{route.path?.original or route.path}' (#{if navDirection is 'hashchange' then '' else 'NOT '}from hash change)"
 
@@ -149,6 +149,12 @@ class Router
 				@_go(matchingRoute, path, true, isRedirect)
 		
 		return @_pendingRoute
+
+
+	setQuery: (query)->
+		query = helpers.serializeQuery(query, @settings.querySerializer)
+		currentPath = helpers.removeQuery(helpers.currentPath()) or '/'
+		window.location.hash = "#{currentPath}?#{query}"
 
 
 	map: (path)->

@@ -75,8 +75,9 @@ Routing = new ()->
 		return
 	
 
-	@Router = (timeout)->
-		routers.push routerInstance = new Router(timeout, ++currentID)
+	@Router = (settings)->
+		settings = {timeout:settings} if settings and typeof settings isnt 'object'		
+		routers.push routerInstance = new Router(settings or {}, ++currentID)
 		return routerInstance
 
 

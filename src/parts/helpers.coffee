@@ -13,7 +13,7 @@ helpers.currentPath = ()->
 helpers.removeQuery = (path)->
 	path.split('?')[0]
 
-helpers.parseQuery = (path)->
+helpers.parseQuery = (path, parser)->
 	query = path.split('?').slice(1).join('?')
 	
 	if query
@@ -26,13 +26,34 @@ helpers.parseQuery = (path)->
 			key = split[0]
 			value = split[1]
 			if (value[0] is '{' or value[0] is '[') and (value[value.length-1] is '}' or value[value.length-1] is ']')
-				value = JSON.parse(value)
+				value = JSON.parse(value, parser)
+			else if parser
+				value = parser(key, value)
 			
 			parsed[key] = value
 
 		return parsed
 
 	return helpers.noopObj
+
+helpers.serializeQuery = (query, serializer)->
+	output = ''
+	keys = Object.keys(query)
+	for key in keys
+		value = query[key]
+		output += '&' if output
+		output += "#{key}="
+		if value and typeof value is 'object'
+			value = JSON.stringify(value, serializer)
+			value = value.slice(1,-1) if value[0] is '"' and value[value.length-1] is '"'
+		else if serializer
+			value = serializer(key, value)
+		else
+			value = value
+		
+		output += encodeURIComponent value
+
+	return output
 
 
 helpers.copyObject = (source)->
