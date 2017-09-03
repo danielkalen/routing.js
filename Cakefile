@@ -8,7 +8,7 @@ fs = require 'fs-jetpack'
 chalk = require 'chalk'
 Path = require 'path'
 process.env.SOURCE_MAPS ?= 1
-buildModules = ['google-closure-compiler-js','uglify-js@3.0.24','debug','ast-replace','escodegen','esprima']
+buildModules = ['google-closure-compiler-js','uglify-js@3.0.24','debug']
 coverageModules = ['istanbul', 'badge-gen', 'coffee-coverage']
 testModules = [
 	'jquery', 'mocha', 'chai', 'sinon'

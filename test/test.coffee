@@ -473,6 +473,51 @@ suite "Routing.JS", ()->
 					expect(params).to.eql '/abc-passive':{}, '/def/:param?':{param:'kale'}, '/def/:param?-passive':{param:'kale'}
 
 
+		test "nested object values", ()->
+			count = {}
+			query = {}
+			router = Routing.Router()
+			register = (path)->
+				count[path] = 0; query[path] = null;
+				router.map(path).to ()-> count[path]++; query[path] = @query
+
+			Promise.resolve()
+				.then ()->
+					register '/'
+					register '/abc'
+					register '/def'
+					router.listen()
+
+				.delay()
+				.then ()->
+					expect(count).to.eql '/':1, '/abc':0, '/def':0
+					expect(query).to.eql '/':{}, '/abc':null, '/def':null
+					setHash('/abc?item=23&names=["abc",123, "def"]')
+				
+				.then ()->
+					expect(count).to.eql '/':1, '/abc':1, '/def':0
+					expect(query).to.eql '/':{}, '/abc':{item:'23',names:['abc',123,'def']}, '/def':null
+					setHash('/def?values=[[1,2,3],  [4,5,6]]&item=[]')
+				
+				.then ()->
+					expect(count).to.eql '/':1, '/abc':1, '/def':1
+					expect(query).to.eql '/':{}, '/abc':{item:'23',names:['abc',123,'def']}, '/def':{item:[], values:[[1,2,3],[4,5,6]]}
+					setHash("/?level1=#{encodeURIComponent JSON.stringify({level2:{level3:['level4']}})}")
+				
+				.then ()->
+					expect(count).to.eql '/':2, '/abc':1, '/def':1
+					expect(query['/']).to.eql {level1: {level2: {level3:['level4']}}}
+					setHash("/abc?level1=#{JSON.stringify({level2:{level3:['level4']}})}")
+				
+				.then ()->
+					expect(count).to.eql '/':2, '/abc':2, '/def':1
+					expect(query['/abc']).to.eql {level1: {level2: {level3:['level4']}}}
+				
+				# .then ()->
+				# 	expect(count).to.eql '/':1, '/abc':2, '/def':2
+				# 	expect(query).to.eql '/':{}, '/abc':{item:'45', key:'value'}, '/def':{size:'small',name:'king'}
+
+
 
 	suite "actions", ()->
 		test "a route can be mapped to an entering function which will be invoked when entering the route (before regular action)", ()->

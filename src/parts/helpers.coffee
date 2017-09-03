@@ -14,15 +14,21 @@ helpers.removeQuery = (path)->
 	path.split('?')[0]
 
 helpers.parseQuery = (path)->
-	query = path.split('?')[1]
+	query = path.split('?').slice(1).join('?')
 	
 	if query
+		query = decodeURIComponent(query)
 		parsed = {}
 		pairs = query.split('&')
 		
 		for pair in pairs
 			split = pair.split('=')
-			parsed[split[0]] = split[1]
+			key = split[0]
+			value = split[1]
+			if (value[0] is '{' or value[0] is '[') and (value[value.length-1] is '}' or value[value.length-1] is ']')
+				value = JSON.parse(value)
+			
+			parsed[key] = value
 
 		return parsed
 
@@ -122,6 +128,7 @@ helpers.pathToRegex = (targetPath, openEnded, original)->
 	regex.string = targetPath
 	regex.length = targetPath.length
 	return regex
+
 
 helpers.segmentsToRegex = (segments, original)->
 	path = ''
