@@ -120,7 +120,7 @@ Routing = new function() {
     routers.push(routerInstance = new Router(settings || {}, ++currentID));
     return routerInstance;
   };
-  this.version = "1.1.3";
+  this.version = "1.1.4";
   return this;
 };
 
@@ -595,25 +595,25 @@ module.exports = Route = (function() {
     }
   };
 
-  Route.prototype._run = function(path, prevRoute, prevPath) {
+  Route.prototype._run = function(path, prevRoute, prevPath, navDirection) {
     debug("running '" + this.path.original + "'");
     this._isActive = true;
     this._context.params = this._resolveParams(path);
     this._context.query = helpers.parseQuery(path, this.router.settings.queryParser);
-    return Promise.resolve(this._invokeAction(this._enterAction, prevPath, prevRoute)).then((function(_this) {
+    return Promise.resolve(this._invokeAction(this._enterAction, prevPath, prevRoute, navDirection)).then((function(_this) {
       return function() {
         return Promise.all(_this._actions.map(function(action) {
-          return _this._invokeAction(action, prevPath, prevRoute);
+          return _this._invokeAction(action, prevPath, prevRoute, navDirection);
         }));
       };
     })(this));
   };
 
-  Route.prototype._leave = function(newRoute, newPath) {
+  Route.prototype._leave = function(newRoute, newPath, navDirection) {
     if (this._isActive) {
       debug("leaving '" + this.path.original + "' to '" + (newRoute != null ? newRoute.path.original : void 0) + "'");
       this._isActive = false;
-      return this._invokeAction(this._leaveAction, newPath, newRoute);
+      return this._invokeAction(this._leaveAction, newPath, newRoute, navDirection);
     }
   };
 
@@ -875,6 +875,34 @@ process.umask = function() { return 0; };
 ;
 return module.exports;
 },
+8: function (require, module, exports) {
+var Context;
+
+module.exports = Context = (function() {
+  function Context(route) {
+    this.route = route;
+    this.segments = this.route.segments;
+    this.path = this.route.path.string;
+    this.params = {};
+    this.query = {};
+  }
+
+  Context.prototype.remove = function() {
+    return this.route.remove();
+  };
+
+  Context.prototype.redirect = function(path) {
+    this.route.router.go(path, 'redirect');
+    return Promise.resolve();
+  };
+
+  return Context;
+
+})();
+
+;
+return module.exports;
+},
 1: function (require, module, exports) {
 var Route, Router, debug, helpers;
 
@@ -1042,10 +1070,10 @@ Router = (function() {
           debug("starting route transition to '" + (((ref = route.path) != null ? ref.original : void 0) || route.path) + "' (" + (navDirection === 'hashchange' ? '' : 'NOT ') + "from hash change)");
           return Promise.resolve().then(_this._globalBefore).then(function() {
             return Promise.all(prevRoutes.map(function(route) {
-              return route._leave(_this.current.route, _this.current.path);
+              return route._leave(_this.current.route, _this.current.path, navDirection);
             }));
           }).then(function() {
-            return route._run(path, _this.prev.route, _this.prev.path);
+            return route._run(path, _this.prev.route, _this.prev.path, navDirection);
           }).then(_this._globalAfter).then(resolve)["catch"](reject);
         });
       };
@@ -1197,34 +1225,6 @@ Router = (function() {
 })();
 
 module.exports = Router;
-
-;
-return module.exports;
-},
-8: function (require, module, exports) {
-var Context;
-
-module.exports = Context = (function() {
-  function Context(route) {
-    this.route = route;
-    this.segments = this.route.segments;
-    this.path = this.route.path.string;
-    this.params = {};
-    this.query = {};
-  }
-
-  Context.prototype.remove = function() {
-    return this.route.remove();
-  };
-
-  Context.prototype.redirect = function(path) {
-    this.route.router.go(path, 'redirect');
-    return Promise.resolve();
-  };
-
-  return Context;
-
-})();
 
 ;
 return module.exports;
