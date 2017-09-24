@@ -2,9 +2,12 @@ module.exports = (file, options, file_, content)->
 	if options._flags.debug or not file.endsWith('.js')
 		return content
 	else
-		parse = require('esprima').parse
-		generate = require('escodegen').generate
-		replace = require 'ast-replace'
+		try
+			parse = require('esprima').parse
+			generate = require('escodegen').generate
+			replace = require 'ast-replace'
+		catch
+			return content
 		
 		output = replace parse(content),
 			CallExpression:
