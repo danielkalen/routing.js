@@ -116,8 +116,8 @@ class Router
 
 			Promise.resolve()
 				.then @_globalBefore
-				.then ()=> Promise.all(prevRoutes.map (route)=> route._leave(@current.route, @current.path))
-				.then ()=> route._run(path, @prev.route, @prev.path)
+				.then ()=> Promise.all(prevRoutes.map (route)=> route._leave(@current.route, @current.path, navDirection))
+				.then ()=> route._run(path, @prev.route, @prev.path, navDirection)
 				.then @_globalAfter
 				.then resolve
 				.catch reject

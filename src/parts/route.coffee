@@ -47,20 +47,20 @@ module.exports = class Route
 		else
 			return result
 
-	_run: (path, prevRoute, prevPath)->
+	_run: (path, prevRoute, prevPath, navDirection)->
 		debug "running '#{@path.original}'"
 		@_isActive = true
 		@_context.params = @_resolveParams(path)
 		@_context.query = helpers.parseQuery(path, @router.settings.queryParser)
 
-		Promise.resolve(@_invokeAction(@_enterAction, prevPath, prevRoute))
-			.then ()=> Promise.all @_actions.map (action)=> @_invokeAction(action, prevPath, prevRoute)
+		Promise.resolve(@_invokeAction(@_enterAction, prevPath, prevRoute, navDirection))
+			.then ()=> Promise.all @_actions.map (action)=> @_invokeAction(action, prevPath, prevRoute, navDirection)
 
 	
-	_leave: (newRoute, newPath)-> if @_isActive
+	_leave: (newRoute, newPath, navDirection)-> if @_isActive
 		debug "leaving '#{@path.original}' to '#{newRoute?.path.original}'"
 		@_isActive = false
-		@_invokeAction(@_leaveAction, newPath, newRoute)
+		@_invokeAction(@_leaveAction, newPath, newRoute, navDirection)
 
 
 	_resolveParams: (path)->
