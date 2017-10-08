@@ -152,9 +152,11 @@ class Router
 
 
 	setQuery: (query)->
-		query = helpers.serializeQuery(query, @settings.querySerializer)
 		currentPath = helpers.removeQuery(helpers.currentPath()) or '/'
-		window.location.hash = "#{currentPath}?#{query}"
+		window.location.hash = "#{currentPath}?#{@prepareQuery(query)}"
+
+	prepareQuery: (query)->
+		helpers.serializeQuery(query, @settings.querySerializer)
 
 
 	map: (path)->
