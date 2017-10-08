@@ -120,7 +120,7 @@ Routing = new function() {
     routers.push(routerInstance = new Router(settings || {}, ++currentID));
     return routerInstance;
   };
-  this.version = "1.1.4";
+  this.version = "1.1.5";
   return this;
 };
 
@@ -903,332 +903,6 @@ module.exports = Context = (function() {
 ;
 return module.exports;
 },
-1: function (require, module, exports) {
-var Route, Router, debug, helpers;
-
-Route = require(5);
-
-helpers = require(2);
-
-debug = (require(3))('routing:router');
-
-Router = (function() {
-  function Router(settings, ID) {
-    this.settings = settings;
-    this.ID = ID;
-    if (isNaN(this.settings.timeout)) {
-      this.settings.timeout = 2500;
-    }
-    this.listening = false;
-    this.routes = [];
-    this._priority = 1;
-    this._routesMap = {};
-    this._cache = {};
-    this._history = [];
-    this._future = [];
-    this._globalBefore = this._globalAfter = helpers.noop;
-    this._pendingRoute = Promise.resolve();
-    this._activeRoutes = [];
-    this.current = this.prev = {
-      route: null,
-      path: null
-    };
-  }
-
-  Router.prototype._addRoute = function(route) {
-    this.routes.push(route);
-    this.routes.sort(function(a, b) {
-      var aLength, bLength, ref, ref1, segmentsDiff;
-      segmentsDiff = a.segments.length - b.segments.length;
-      if (!segmentsDiff) {
-        aLength = ((ref = a.segments.dynamic) != null ? ref.length : void 0) || 0;
-        bLength = ((ref1 = b.segments.dynamic) != null ? ref1.length : void 0) || 0;
-        segmentsDiff = aLength - bLength;
-      }
-      return segmentsDiff;
-    });
-    debug("added route '" + route.path.original + "'");
-    return route;
-  };
-
-  Router.prototype._removeRoute = function(route) {
-    var cacheKeys, mapKeys, matchingCacheKey, matchingMapKey;
-    cacheKeys = Object.keys(this._cache);
-    mapKeys = Object.keys(this._routesMap);
-    matchingCacheKey = cacheKeys.filter((function(_this) {
-      return function(key) {
-        return _this._cache[key] === route;
-      };
-    })(this))[0];
-    matchingMapKey = cacheKeys.filter((function(_this) {
-      return function(key) {
-        return _this._routesMap[key] === route;
-      };
-    })(this))[0];
-    helpers.removeItem(this.routes, route);
-    delete this._cache[matchingCacheKey];
-    delete this._routesMap[matchingMapKey];
-    return debug("removed route '" + route.path.original + "'");
-  };
-
-  Router.prototype._matchPath = function(path) {
-    var i, len, matchingRoute, passiveRoutes, ref, ref1, route;
-    path = helpers.removeQuery(path) || '/';
-    matchingRoute = this._cache[path];
-    if (!matchingRoute) {
-      ref = this.routes;
-      for (i = 0, len = ref.length; i < len; i++) {
-        route = ref[i];
-        if (!route.matchesPath(path)) {
-          continue;
-        }
-        if (this._hasPassives) {
-          if (route._passiveVersion) {
-            if (!passiveRoutes) {
-              passiveRoutes = [];
-            }
-            passiveRoutes.push(route._passiveVersion);
-            if (route._actions.length === 0) {
-              continue;
-            }
-          }
-          if (!matchingRoute) {
-            matchingRoute = route;
-          }
-        } else {
-          matchingRoute = route;
-          break;
-        }
-      }
-    }
-    if (passiveRoutes) {
-      if (matchingRoute) {
-        passiveRoutes.push(matchingRoute);
-      }
-      matchingRoute = passiveRoutes;
-      debug("matched " + path + " with [" + (passiveRoutes.map(function(r) {
-        return r.path.original;
-      }).join(', ')) + "]");
-    } else {
-      if (matchingRoute) {
-        debug("matched " + path + " with '" + (((ref1 = matchingRoute.path) != null ? ref1.original : void 0) || matchingRoute.path) + "'");
-      }
-    }
-    if (matchingRoute) {
-      return this._cache[path] = matchingRoute;
-    }
-  };
-
-  Router.prototype._go = function(route, path, storeChange, navDirection, activeRoutes) {
-    var currentPath;
-    if (!activeRoutes) {
-      activeRoutes = this._activeRoutes.slice();
-      this._activeRoutes.length = 0;
-    }
-    if (route.constructor === Array) {
-      return Promise.all(route.map((function(_this) {
-        return function(route_) {
-          return _this._go(route_, path, storeChange, navDirection, activeRoutes);
-        };
-      })(this)));
-    }
-    path = helpers.applyBase(path, this._basePath);
-    if (storeChange && !route._isPassive) {
-      debug("storing hash change " + route.path.original);
-      currentPath = helpers.currentPath();
-      if (path !== currentPath) {
-        window.location.hash = path;
-      }
-      if (navDirection === 'redirect') {
-        this.current = this.prev;
-        this._history.pop();
-      }
-      if (this.current.route && navDirection !== 'back') {
-        this._history.push(this.current);
-      }
-      if (!navDirection || navDirection === 'hashchange') {
-        this._future.length = 0;
-      }
-      this.prev = helpers.copyObject(this.current);
-      this.current = {
-        route: route,
-        path: path
-      };
-    }
-    this._pendingRoute = this._pendingRoute.then((function(_this) {
-      return function() {
-        return new Promise(function(resolve, reject) {
-          var prevRoutes, ref;
-          if (!(route === _this._fallbackRoute || helpers.includes(_this._activeRoutes, route))) {
-            _this._activeRoutes.push(route);
-          }
-          prevRoutes = activeRoutes.slice();
-          activeRoutes.length = 0;
-          setTimeout(function() {
-            return reject(new Error("TimeoutError: '" + path + "' failed to load within " + _this.settings.timeout + "ms (Router #" + _this.ID + ")"));
-          }, _this.settings.timeout);
-          debug("starting route transition to '" + (((ref = route.path) != null ? ref.original : void 0) || route.path) + "' (" + (navDirection === 'hashchange' ? '' : 'NOT ') + "from hash change)");
-          return Promise.resolve().then(_this._globalBefore).then(function() {
-            return Promise.all(prevRoutes.map(function(route) {
-              return route._leave(_this.current.route, _this.current.path, navDirection);
-            }));
-          }).then(function() {
-            return route._run(path, _this.prev.route, _this.prev.path, navDirection);
-          }).then(_this._globalAfter).then(resolve)["catch"](reject);
-        });
-      };
-    })(this));
-    return this._pendingRoute["catch"]((function(_this) {
-      return function(err) {
-        debug("error occured during route transition to '" + path + "'");
-        helpers.logError(err);
-        helpers.removeItem(_this._activeRoutes, route);
-        _this._pendingRoute = Promise.resolve();
-        if (_this._fallbackRoute) {
-          return _this._go(_this._fallbackRoute, _this.current.path);
-        } else {
-          return _this._go(_this.prev.route, _this.prev.path, true, 'back');
-        }
-      };
-    })(this));
-  };
-
-  Router.prototype.go = function(pathGiven, isRedirect) {
-    var matchingRoute, path;
-    if (typeof pathGiven === 'string') {
-      debug("starting manual route transition to " + pathGiven);
-      path = helpers.cleanPath(pathGiven);
-      path = helpers.removeBase(path, this._basePath);
-      matchingRoute = this._matchPath(path);
-      if (!matchingRoute) {
-        matchingRoute = this._fallbackRoute;
-      }
-      if (matchingRoute && path !== this.current.path) {
-        this._go(matchingRoute, path, true, isRedirect);
-      }
-    }
-    return this._pendingRoute;
-  };
-
-  Router.prototype.setQuery = function(query) {
-    var currentPath;
-    query = helpers.serializeQuery(query, this.settings.querySerializer);
-    currentPath = helpers.removeQuery(helpers.currentPath()) || '/';
-    return window.location.hash = currentPath + "?" + query;
-  };
-
-  Router.prototype.map = function(path) {
-    var matchingRoute, pathRegex, segments;
-    path = helpers.cleanPath(path);
-    segments = helpers.parsePath(path);
-    matchingRoute = this._routesMap[path];
-    if (!matchingRoute) {
-      pathRegex = helpers.segmentsToRegex(segments, path);
-      matchingRoute = this._routesMap[path] = new Route(pathRegex, segments, this);
-      this._addRoute(matchingRoute);
-    }
-    return matchingRoute;
-  };
-
-  Router.prototype.mapOnce = function(path) {
-    return this.map(path).to(function() {
-      return this.remove();
-    });
-  };
-
-  Router.prototype.listen = function(initOnStart) {
-    if (initOnStart == null) {
-      initOnStart = true;
-    }
-    this.listening = true;
-    (require(0))._registerRouter(this, initOnStart);
-    debug("router " + this.ID + " listening");
-    return this;
-  };
-
-  Router.prototype.beforeAll = function(fn) {
-    this._globalBefore = fn;
-    return this;
-  };
-
-  Router.prototype.afterAll = function(fn) {
-    this._globalAfter = fn;
-    return this;
-  };
-
-  Router.prototype.base = function(path) {
-    this._basePath = helpers.pathToRegex(helpers.cleanPath(path), true, path);
-    return this;
-  };
-
-  Router.prototype.priority = function(priority) {
-    if (priority && typeof priority === 'number') {
-      this._priority = priority;
-    }
-    return this;
-  };
-
-  Router.prototype.fallback = function(fn) {
-    this._fallbackRoute = new Route('*FALLBACK*', [], this);
-    this._fallbackRoute.to(fn);
-    debug("added fallback route");
-    return this;
-  };
-
-  Router.prototype.back = function() {
-    var prev;
-    debug("history - back");
-    if (this.current.route) {
-      this._future.unshift(this.current);
-    }
-    prev = this._history.pop();
-    if (prev) {
-      return this._go(prev.route, prev.path, true, 'back');
-    } else {
-      return Promise.resolve();
-    }
-  };
-
-  Router.prototype.forward = function() {
-    var next;
-    debug("history - forward");
-    next = this._future.shift();
-    if (next) {
-      return this._go(next.route, next.path, true, 'forward');
-    } else {
-      return Promise.resolve();
-    }
-  };
-
-  Router.prototype.refresh = function() {
-    debug("history - refresh");
-    if (this.current.route) {
-      this.prev.path = this.current.path;
-      this.prev.route = this.current.route;
-      this._go(this.current.route, this.current.path);
-    }
-    return this._pendingRoute;
-  };
-
-  Router.prototype.kill = function() {
-    this._routesMap = {};
-    this._cache = {};
-    this.routes.length = this._history.length = this._future.length = 0;
-    this._globalBefore = this._globalAfter = helpers.noop;
-    this._fallbackRoute = null;
-    this.current.route = this.current.path = this.prev.route = this.prev.path = null;
-    debug("router " + this.ID + " killed");
-  };
-
-  return Router;
-
-})();
-
-module.exports = Router;
-
-;
-return module.exports;
-},
 9: function (require, module, exports) {
 /**
  * Helpers.
@@ -1612,6 +1286,335 @@ helpers.segmentsToRegex = function(segments, original) {
   }
   return helpers.pathToRegex(path, false, original);
 };
+
+;
+return module.exports;
+},
+1: function (require, module, exports) {
+var Route, Router, debug, helpers;
+
+Route = require(5);
+
+helpers = require(2);
+
+debug = (require(3))('routing:router');
+
+Router = (function() {
+  function Router(settings, ID) {
+    this.settings = settings;
+    this.ID = ID;
+    if (isNaN(this.settings.timeout)) {
+      this.settings.timeout = 2500;
+    }
+    this.listening = false;
+    this.routes = [];
+    this._priority = 1;
+    this._routesMap = {};
+    this._cache = {};
+    this._history = [];
+    this._future = [];
+    this._globalBefore = this._globalAfter = helpers.noop;
+    this._pendingRoute = Promise.resolve();
+    this._activeRoutes = [];
+    this.current = this.prev = {
+      route: null,
+      path: null
+    };
+  }
+
+  Router.prototype._addRoute = function(route) {
+    this.routes.push(route);
+    this.routes.sort(function(a, b) {
+      var aLength, bLength, ref, ref1, segmentsDiff;
+      segmentsDiff = a.segments.length - b.segments.length;
+      if (!segmentsDiff) {
+        aLength = ((ref = a.segments.dynamic) != null ? ref.length : void 0) || 0;
+        bLength = ((ref1 = b.segments.dynamic) != null ? ref1.length : void 0) || 0;
+        segmentsDiff = aLength - bLength;
+      }
+      return segmentsDiff;
+    });
+    debug("added route '" + route.path.original + "'");
+    return route;
+  };
+
+  Router.prototype._removeRoute = function(route) {
+    var cacheKeys, mapKeys, matchingCacheKey, matchingMapKey;
+    cacheKeys = Object.keys(this._cache);
+    mapKeys = Object.keys(this._routesMap);
+    matchingCacheKey = cacheKeys.filter((function(_this) {
+      return function(key) {
+        return _this._cache[key] === route;
+      };
+    })(this))[0];
+    matchingMapKey = cacheKeys.filter((function(_this) {
+      return function(key) {
+        return _this._routesMap[key] === route;
+      };
+    })(this))[0];
+    helpers.removeItem(this.routes, route);
+    delete this._cache[matchingCacheKey];
+    delete this._routesMap[matchingMapKey];
+    return debug("removed route '" + route.path.original + "'");
+  };
+
+  Router.prototype._matchPath = function(path) {
+    var i, len, matchingRoute, passiveRoutes, ref, ref1, route;
+    path = helpers.removeQuery(path) || '/';
+    matchingRoute = this._cache[path];
+    if (!matchingRoute) {
+      ref = this.routes;
+      for (i = 0, len = ref.length; i < len; i++) {
+        route = ref[i];
+        if (!route.matchesPath(path)) {
+          continue;
+        }
+        if (this._hasPassives) {
+          if (route._passiveVersion) {
+            if (!passiveRoutes) {
+              passiveRoutes = [];
+            }
+            passiveRoutes.push(route._passiveVersion);
+            if (route._actions.length === 0) {
+              continue;
+            }
+          }
+          if (!matchingRoute) {
+            matchingRoute = route;
+          }
+        } else {
+          matchingRoute = route;
+          break;
+        }
+      }
+    }
+    if (passiveRoutes) {
+      if (matchingRoute) {
+        passiveRoutes.push(matchingRoute);
+      }
+      matchingRoute = passiveRoutes;
+      debug("matched " + path + " with [" + (passiveRoutes.map(function(r) {
+        return r.path.original;
+      }).join(', ')) + "]");
+    } else {
+      if (matchingRoute) {
+        debug("matched " + path + " with '" + (((ref1 = matchingRoute.path) != null ? ref1.original : void 0) || matchingRoute.path) + "'");
+      }
+    }
+    if (matchingRoute) {
+      return this._cache[path] = matchingRoute;
+    }
+  };
+
+  Router.prototype._go = function(route, path, storeChange, navDirection, activeRoutes) {
+    var currentPath;
+    if (!activeRoutes) {
+      activeRoutes = this._activeRoutes.slice();
+      this._activeRoutes.length = 0;
+    }
+    if (route.constructor === Array) {
+      return Promise.all(route.map((function(_this) {
+        return function(route_) {
+          return _this._go(route_, path, storeChange, navDirection, activeRoutes);
+        };
+      })(this)));
+    }
+    path = helpers.applyBase(path, this._basePath);
+    if (storeChange && !route._isPassive) {
+      debug("storing hash change " + route.path.original);
+      currentPath = helpers.currentPath();
+      if (path !== currentPath) {
+        window.location.hash = path;
+      }
+      if (navDirection === 'redirect') {
+        this.current = this.prev;
+        this._history.pop();
+      }
+      if (this.current.route && navDirection !== 'back') {
+        this._history.push(this.current);
+      }
+      if (!navDirection || navDirection === 'hashchange') {
+        this._future.length = 0;
+      }
+      this.prev = helpers.copyObject(this.current);
+      this.current = {
+        route: route,
+        path: path
+      };
+    }
+    this._pendingRoute = this._pendingRoute.then((function(_this) {
+      return function() {
+        return new Promise(function(resolve, reject) {
+          var prevRoutes, ref;
+          if (!(route === _this._fallbackRoute || helpers.includes(_this._activeRoutes, route))) {
+            _this._activeRoutes.push(route);
+          }
+          prevRoutes = activeRoutes.slice();
+          activeRoutes.length = 0;
+          setTimeout(function() {
+            return reject(new Error("TimeoutError: '" + path + "' failed to load within " + _this.settings.timeout + "ms (Router #" + _this.ID + ")"));
+          }, _this.settings.timeout);
+          debug("starting route transition to '" + (((ref = route.path) != null ? ref.original : void 0) || route.path) + "' (" + (navDirection === 'hashchange' ? '' : 'NOT ') + "from hash change)");
+          return Promise.resolve().then(_this._globalBefore).then(function() {
+            return Promise.all(prevRoutes.map(function(route) {
+              return route._leave(_this.current.route, _this.current.path, navDirection);
+            }));
+          }).then(function() {
+            return route._run(path, _this.prev.route, _this.prev.path, navDirection);
+          }).then(_this._globalAfter).then(resolve)["catch"](reject);
+        });
+      };
+    })(this));
+    return this._pendingRoute["catch"]((function(_this) {
+      return function(err) {
+        debug("error occured during route transition to '" + path + "'");
+        helpers.logError(err);
+        helpers.removeItem(_this._activeRoutes, route);
+        _this._pendingRoute = Promise.resolve();
+        if (_this._fallbackRoute) {
+          return _this._go(_this._fallbackRoute, _this.current.path);
+        } else {
+          return _this._go(_this.prev.route, _this.prev.path, true, 'back');
+        }
+      };
+    })(this));
+  };
+
+  Router.prototype.go = function(pathGiven, isRedirect) {
+    var matchingRoute, path;
+    if (typeof pathGiven === 'string') {
+      debug("starting manual route transition to " + pathGiven);
+      path = helpers.cleanPath(pathGiven);
+      path = helpers.removeBase(path, this._basePath);
+      matchingRoute = this._matchPath(path);
+      if (!matchingRoute) {
+        matchingRoute = this._fallbackRoute;
+      }
+      if (matchingRoute && path !== this.current.path) {
+        this._go(matchingRoute, path, true, isRedirect);
+      }
+    }
+    return this._pendingRoute;
+  };
+
+  Router.prototype.setQuery = function(query) {
+    var currentPath;
+    currentPath = helpers.removeQuery(helpers.currentPath()) || '/';
+    return window.location.hash = currentPath + "?" + (this.prepareQuery(query));
+  };
+
+  Router.prototype.prepareQuery = function(query) {
+    return helpers.serializeQuery(query, this.settings.querySerializer);
+  };
+
+  Router.prototype.map = function(path) {
+    var matchingRoute, pathRegex, segments;
+    path = helpers.cleanPath(path);
+    segments = helpers.parsePath(path);
+    matchingRoute = this._routesMap[path];
+    if (!matchingRoute) {
+      pathRegex = helpers.segmentsToRegex(segments, path);
+      matchingRoute = this._routesMap[path] = new Route(pathRegex, segments, this);
+      this._addRoute(matchingRoute);
+    }
+    return matchingRoute;
+  };
+
+  Router.prototype.mapOnce = function(path) {
+    return this.map(path).to(function() {
+      return this.remove();
+    });
+  };
+
+  Router.prototype.listen = function(initOnStart) {
+    if (initOnStart == null) {
+      initOnStart = true;
+    }
+    this.listening = true;
+    (require(0))._registerRouter(this, initOnStart);
+    debug("router " + this.ID + " listening");
+    return this;
+  };
+
+  Router.prototype.beforeAll = function(fn) {
+    this._globalBefore = fn;
+    return this;
+  };
+
+  Router.prototype.afterAll = function(fn) {
+    this._globalAfter = fn;
+    return this;
+  };
+
+  Router.prototype.base = function(path) {
+    this._basePath = helpers.pathToRegex(helpers.cleanPath(path), true, path);
+    return this;
+  };
+
+  Router.prototype.priority = function(priority) {
+    if (priority && typeof priority === 'number') {
+      this._priority = priority;
+    }
+    return this;
+  };
+
+  Router.prototype.fallback = function(fn) {
+    this._fallbackRoute = new Route('*FALLBACK*', [], this);
+    this._fallbackRoute.to(fn);
+    debug("added fallback route");
+    return this;
+  };
+
+  Router.prototype.back = function() {
+    var prev;
+    debug("history - back");
+    if (this.current.route) {
+      this._future.unshift(this.current);
+    }
+    prev = this._history.pop();
+    if (prev) {
+      return this._go(prev.route, prev.path, true, 'back');
+    } else {
+      return Promise.resolve();
+    }
+  };
+
+  Router.prototype.forward = function() {
+    var next;
+    debug("history - forward");
+    next = this._future.shift();
+    if (next) {
+      return this._go(next.route, next.path, true, 'forward');
+    } else {
+      return Promise.resolve();
+    }
+  };
+
+  Router.prototype.refresh = function() {
+    debug("history - refresh");
+    if (this.current.route) {
+      this.prev.path = this.current.path;
+      this.prev.route = this.current.route;
+      this._go(this.current.route, this.current.path);
+    }
+    return this._pendingRoute;
+  };
+
+  Router.prototype.kill = function() {
+    this._routesMap = {};
+    this._cache = {};
+    this.routes.length = this._history.length = this._future.length = 0;
+    this._globalBefore = this._globalAfter = helpers.noop;
+    this._fallbackRoute = null;
+    this.current.route = this.current.path = this.prev.route = this.prev.path = null;
+    debug("router " + this.ID + " killed");
+  };
+
+  return Router;
+
+})();
+
+module.exports = Router;
 
 ;
 return module.exports;
