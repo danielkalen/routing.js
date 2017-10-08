@@ -48,5 +48,5 @@ replacements = [
 	[/pathToRegex/g, 'pRE']
 	[/segmentsToRegex/g, 'sRE']
 	[/copyObject/g, 'cO']
-	['serializeQuery', 'sQ']
+	[/serializeQuery/g, 'sQ']
 ]
