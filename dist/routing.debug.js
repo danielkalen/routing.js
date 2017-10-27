@@ -120,11 +120,171 @@ Routing = new function() {
     routers.push(routerInstance = new Router(settings || {}, ++currentID));
     return routerInstance;
   };
-  this.version = "1.1.5";
+  this.version = "1.1.6";
   return this;
 };
 
 module.exports = Routing;
+
+;
+return module.exports;
+},
+5: function (require, module, exports) {
+var Context, Route, debug, helpers;
+
+Context = require(8);
+
+helpers = require(2);
+
+debug = (require(3))('routing:route');
+
+module.exports = Route = (function() {
+  function Route(path1, segments1, router, _isPassive) {
+    this.path = path1;
+    this.segments = segments1;
+    this.router = router;
+    this._isPassive = _isPassive;
+    this._context = new Context(this);
+    this._enterAction = this._leaveAction = helpers.noop;
+    this._actions = [];
+  }
+
+  Route.prototype.entering = function(fn) {
+    this._enterAction = fn;
+    return this;
+  };
+
+  Route.prototype.leaving = function(fn) {
+    this._leaveAction = fn;
+    return this;
+  };
+
+  Route.prototype.to = function(fn) {
+    this._actions.push(fn);
+    return this;
+  };
+
+  Route.prototype.filters = function(filters) {
+    this._dynamicFilters = filters;
+    return this;
+  };
+
+  Route.prototype.passive = function() {
+    if (this._isPassive) {
+      return this;
+    } else if (!this._passiveVersion) {
+      debug("added passive version '" + this.path.original + "'");
+      this._passiveVersion = new Route(this.path, this.segments, this.router, true);
+      this.router._hasPassives = true;
+    }
+    return this._passiveVersion;
+  };
+
+  Route.prototype.remove = function() {
+    return this.router._removeRoute(this);
+  };
+
+  Route.prototype._invokeAction = function(action, relatedPath, relatedRoute, navDirection) {
+    var result;
+    if (action === this._enterAction) {
+      debug("entering '" + this.path.original + "' from '" + relatedPath + "'");
+    }
+    result = action.call(this._context, relatedPath, relatedRoute, navDirection);
+    if (result === this.router._pendingRoute) {
+      return null;
+    } else {
+      return result;
+    }
+  };
+
+  Route.prototype._run = function(path, prevRoute, prevPath, navDirection) {
+    debug("running '" + this.path.original + "'");
+    this._isActive = true;
+    this._context.params = this._resolveParams(path);
+    this._context.query = helpers.parseQuery(path, this.router.settings.queryParser);
+    return Promise.resolve(this._invokeAction(this._enterAction, prevPath, prevRoute, navDirection)).then((function(_this) {
+      return function() {
+        return Promise.all(_this._actions.map(function(action) {
+          return _this._invokeAction(action, prevPath, prevRoute, navDirection);
+        }));
+      };
+    })(this));
+  };
+
+  Route.prototype._leave = function(newRoute, newPath, navDirection) {
+    if (this._isActive) {
+      debug("leaving '" + this.path.original + "' to '" + (newRoute != null ? newRoute.path.original : void 0) + "'");
+      this._isActive = false;
+      return this._invokeAction(this._leaveAction, newPath, newRoute, navDirection);
+    }
+  };
+
+  Route.prototype._resolveParams = function(path) {
+    var dynamicIndex, params, ref, segmentName, segments;
+    if (!this.segments.dynamic) {
+      return helpers.noopObj;
+    }
+    path = helpers.removeQuery(helpers.removeBase(path, this.router._basePath));
+    segments = path.split('/');
+    params = {};
+    ref = this.segments.dynamic;
+    for (dynamicIndex in ref) {
+      segmentName = ref[dynamicIndex];
+      if (dynamicIndex !== 'length') {
+        params[segmentName] = segments[dynamicIndex] || '';
+      }
+    }
+    return params;
+  };
+
+  Route.prototype.matchesPath = function(target) {
+    var dynamicSegment, i, index, isMatching, len, segment, segments;
+    isMatching = false;
+    if (isMatching = this.path.test(target)) {
+      if (this.segments.dynamic && this._dynamicFilters) {
+        if (!segments) {
+          segments = target.split('/');
+        }
+        for (index = i = 0, len = segments.length; i < len; index = ++i) {
+          segment = segments[index];
+          if (segment !== this.segments[index]) {
+            dynamicSegment = this.segments.dynamic[index];
+            if (isMatching = dynamicSegment != null) {
+              if (this._dynamicFilters[dynamicSegment]) {
+                isMatching = this._dynamicFilters[dynamicSegment](segment);
+              }
+            }
+          }
+          if (!isMatching) {
+            break;
+          }
+        }
+      }
+    }
+    return isMatching;
+  };
+
+  Object.defineProperties(Route.prototype, {
+    'map': {
+      get: function() {
+        return this.router.map.bind(this.router);
+      }
+    },
+    'mapOnce': {
+      get: function() {
+        return this.router.mapOnce.bind(this.router);
+      }
+    },
+    'listen': {
+      get: function() {
+        return this.router.listen.bind(this.router);
+      }
+    }
+  });
+
+  return Route;
+
+})();
 
 ;
 return module.exports;
@@ -524,166 +684,6 @@ function coerce(val) {
   if (val instanceof Error) return val.stack || val.message;
   return val;
 }
-;
-return module.exports;
-},
-5: function (require, module, exports) {
-var Context, Route, debug, helpers;
-
-Context = require(8);
-
-helpers = require(2);
-
-debug = (require(3))('routing:route');
-
-module.exports = Route = (function() {
-  function Route(path1, segments1, router, _isPassive) {
-    this.path = path1;
-    this.segments = segments1;
-    this.router = router;
-    this._isPassive = _isPassive;
-    this._context = new Context(this);
-    this._enterAction = this._leaveAction = helpers.noop;
-    this._actions = [];
-  }
-
-  Route.prototype.entering = function(fn) {
-    this._enterAction = fn;
-    return this;
-  };
-
-  Route.prototype.leaving = function(fn) {
-    this._leaveAction = fn;
-    return this;
-  };
-
-  Route.prototype.to = function(fn) {
-    this._actions.push(fn);
-    return this;
-  };
-
-  Route.prototype.filters = function(filters) {
-    this._dynamicFilters = filters;
-    return this;
-  };
-
-  Route.prototype.passive = function() {
-    if (this._isPassive) {
-      return this;
-    } else if (!this._passiveVersion) {
-      debug("added passive version '" + this.path.original + "'");
-      this._passiveVersion = new Route(this.path, this.segments, this.router, true);
-      this.router._hasPassives = true;
-    }
-    return this._passiveVersion;
-  };
-
-  Route.prototype.remove = function() {
-    return this.router._removeRoute(this);
-  };
-
-  Route.prototype._invokeAction = function(action, relatedPath, relatedRoute) {
-    var result;
-    if (action === this._enterAction) {
-      debug("entering '" + this.path.original + "' from '" + relatedPath + "'");
-    }
-    result = action.call(this._context, relatedPath, relatedRoute);
-    if (result === this.router._pendingRoute) {
-      return null;
-    } else {
-      return result;
-    }
-  };
-
-  Route.prototype._run = function(path, prevRoute, prevPath, navDirection) {
-    debug("running '" + this.path.original + "'");
-    this._isActive = true;
-    this._context.params = this._resolveParams(path);
-    this._context.query = helpers.parseQuery(path, this.router.settings.queryParser);
-    return Promise.resolve(this._invokeAction(this._enterAction, prevPath, prevRoute, navDirection)).then((function(_this) {
-      return function() {
-        return Promise.all(_this._actions.map(function(action) {
-          return _this._invokeAction(action, prevPath, prevRoute, navDirection);
-        }));
-      };
-    })(this));
-  };
-
-  Route.prototype._leave = function(newRoute, newPath, navDirection) {
-    if (this._isActive) {
-      debug("leaving '" + this.path.original + "' to '" + (newRoute != null ? newRoute.path.original : void 0) + "'");
-      this._isActive = false;
-      return this._invokeAction(this._leaveAction, newPath, newRoute, navDirection);
-    }
-  };
-
-  Route.prototype._resolveParams = function(path) {
-    var dynamicIndex, params, ref, segmentName, segments;
-    if (!this.segments.dynamic) {
-      return helpers.noopObj;
-    }
-    path = helpers.removeQuery(helpers.removeBase(path, this.router._basePath));
-    segments = path.split('/');
-    params = {};
-    ref = this.segments.dynamic;
-    for (dynamicIndex in ref) {
-      segmentName = ref[dynamicIndex];
-      if (dynamicIndex !== 'length') {
-        params[segmentName] = segments[dynamicIndex] || '';
-      }
-    }
-    return params;
-  };
-
-  Route.prototype.matchesPath = function(target) {
-    var dynamicSegment, i, index, isMatching, len, segment, segments;
-    isMatching = false;
-    if (isMatching = this.path.test(target)) {
-      if (this.segments.dynamic && this._dynamicFilters) {
-        if (!segments) {
-          segments = target.split('/');
-        }
-        for (index = i = 0, len = segments.length; i < len; index = ++i) {
-          segment = segments[index];
-          if (segment !== this.segments[index]) {
-            dynamicSegment = this.segments.dynamic[index];
-            if (isMatching = dynamicSegment != null) {
-              if (this._dynamicFilters[dynamicSegment]) {
-                isMatching = this._dynamicFilters[dynamicSegment](segment);
-              }
-            }
-          }
-          if (!isMatching) {
-            break;
-          }
-        }
-      }
-    }
-    return isMatching;
-  };
-
-  Object.defineProperties(Route.prototype, {
-    'map': {
-      get: function() {
-        return this.router.map.bind(this.router);
-      }
-    },
-    'mapOnce': {
-      get: function() {
-        return this.router.mapOnce.bind(this.router);
-      }
-    },
-    'listen': {
-      get: function() {
-        return this.router.listen.bind(this.router);
-      }
-    }
-  });
-
-  return Route;
-
-})();
-
 ;
 return module.exports;
 },
