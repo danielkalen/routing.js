@@ -4,8 +4,7 @@
   "description": "Simple, lightweight, promise-based client-side routing supporting IE8+",
   "main": "dist/routing.js",
   "browser": {
-    "./debug": "dist/routing.debug.js",
-    "./dist/routing.js": "src/index.coffee"
+    "./debug": "dist/routing.debug.js"
   },
   "browserify": {
     "transform": [
